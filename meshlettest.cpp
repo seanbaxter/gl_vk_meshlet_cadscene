@@ -1082,7 +1082,7 @@ int main(int argc, const char** argv)
 {
   NVPSystem system(argv[0], PROJECT_NAME);
 
-  omp_set_num_threads(std::thread::hardware_concurrency());
+  // omp_set_num_threads(std::thread::hardware_concurrency());
 
   Sample sample;
 

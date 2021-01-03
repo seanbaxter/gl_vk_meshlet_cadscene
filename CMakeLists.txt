@@ -5,7 +5,6 @@ Project(${PROJNAME})
 Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")
 
-
 SET(MODEL_DOWNLOAD_${PROJNAME} ON CACHE BOOL "CHECK to download the 3d models needed for this sample" )
 
 #####################################################################################
@@ -45,11 +44,7 @@ set( BUILD_${PROJNAME}_VULKAN_ONLY FALSE CACHE BOOL "Avoids OpenGL in samples th
 # add files in PACKAGE_SOURCE_FILES
 
 set( VK_EXENAME "vk_meshlet_cadscene" )
-set( GL_VK_EXENAME "gl_vk_meshlet_cadscene" )
 
-if(NOT BUILD_${PROJNAME}_VULKAN_ONLY)
-  _add_package_OpenGL()
-endif()
 _add_package_VulkanSDK()
 _add_package_ShaderC()
 _add_package_IMGUI()
@@ -89,22 +84,13 @@ endif()
 #####################################################################################
 # Source files for this project
 #
-file(GLOB GL_VK_SOURCE_FILES *.cpp *.hpp *.inl *.h *.c)
 file(GLOB VK_SOURCE_FILES *.cpp *.hpp *.inl *.h *.c)
 file(GLOB GLSL_FILES *.glsl)
 
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/cadscene_gl.cpp)
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/cadscene_gl.hpp)
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_mesh_shader.h)
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_mesh_shader.cpp)
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_draw_vulkan_image.h)
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_draw_vulkan_image.cpp)
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources_gl.cpp)
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources_gl.hpp)
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/renderer_gl.cpp)
-list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/renderer_gl_mesh.cpp)
-
-
 
 #####################################################################################
 # common source code needed for this sample
@@ -117,38 +103,17 @@ source_group(shaders FILES
   ${GLSL_FILES}
 )
 
-source_group("Source Files" FILES ${GL_VK_SOURCE_FILES})
-
-if(UNIX)
-  set(UNIXLINKLIBS dl pthread)
-else()
-  set(UNIXLINKLIBS)
-endif()
-
-
-#####################################################################################
-# Executable
-#
-if(WIN32 AND NOT GLUT_FOUND)
-  add_definitions(/wd4996) #remove printf warning
-  add_definitions(/wd4244) #remove double to float conversion warning
-  add_definitions(/wd4305) #remove double to float truncation warning
-else()
-  add_definitions(-fpermissive)
-endif()
-
+set(UNIXLINKLIBS dl pthread openmp)
 
 add_executable(${VK_EXENAME} ${VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_FILES})
-
-if(NOT BUILD_${PROJNAME}_VULKAN_ONLY)
-  add_executable(${GL_VK_EXENAME} ${GL_VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_FILES})
-  target_compile_definitions(${GL_VK_EXENAME} PRIVATE -DHAS_OPENGL=1)
-endif()
 
 #####################################################################################
 # Linkage
 #
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(${VK_EXENAME} PRIVATE Threads::Threads)
 target_link_libraries(${VK_EXENAME} ${PLATFORM_LIBRARIES} shared_sources)
 
 foreach(DEBUGLIB ${LIBRARIES_DEBUG})
@@ -159,28 +124,12 @@ foreach(RELEASELIB ${LIBRARIES_OPTIMIZED})
   target_link_libraries(${VK_EXENAME} optimized ${RELEASELIB})
 endforeach(RELEASELIB)
 
-if(NOT BUILD_${PROJNAME}_VULKAN_ONLY)
-  target_link_libraries(${GL_VK_EXENAME} ${PLATFORM_LIBRARIES} shared_sources)
-
-  foreach(DEBUGLIB ${LIBRARIES_DEBUG})
-    target_link_libraries(${GL_VK_EXENAME} debug ${DEBUGLIB})
-  endforeach(DEBUGLIB)
-
-  foreach(RELEASELIB ${LIBRARIES_OPTIMIZED})
-    target_link_libraries(${GL_VK_EXENAME} optimized ${RELEASELIB})
-  endforeach(RELEASELIB)
-endif()
-
 
 #####################################################################################
 # copies binaries that need to be put next to the exe files (ZLib, etc.)
 #
 
 _copy_binaries_to_target( ${VK_EXENAME} )
-if(NOT BUILD_${PROJNAME}_VULKAN_ONLY)
-  _copy_binaries_to_target( ${GL_VK_EXENAME} )
-endif()
-
 LIST(APPEND GLSL_FILES "common.h")
 LIST(APPEND GLSL_FILES "config.h")
 LIST(APPEND ASSET_FILES "blade_meshlet.cfg")
