@@ -34,28 +34,14 @@
 //////////////////////////////////////////////////
 // UNIFORMS
 
-#if IS_VULKAN
+layout(std140,binding= SCENE_UBO_VIEW,set=DSET_SCENE) uniform sceneBuffer {
+  SceneData scene;
+};
 
-  layout(std140,binding= SCENE_UBO_VIEW,set=DSET_SCENE) uniform sceneBuffer {
-    SceneData scene;
-  };
-
-  layout(std140,binding=0,set=DSET_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
+layout(std140,binding=0,set=DSET_OBJECT) uniform objectBuffer {
+  ObjectData object;
+};
   
-#else
-
-  layout(std140,binding=UBO_SCENE_VIEW) uniform sceneBuffer {
-    SceneData scene;
-  };
-
-  layout(std140,binding=UBO_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
-
-#endif
-
 //////////////////////////////////////////////////
 // INPUT
 
@@ -91,18 +77,9 @@ void main()
   vec3 lightDir = normalize(scene.wLightPos.xyz - IN.wPos.xyz);
   vec3 normal   = normalize(wNormal) * (gl_FrontFacing ? 1 : 1);
 
-#if 1
   vec4 diffuse  = vec4(abs(dot(normal,lightDir)));
   out_Color = diffuse * color;
-#else
-  float lt = abs(dot(normal,lightDir));
-  float wt = dot(normal,lightDir) * 0.5 + 0.5;
-  vec4 diffuse  = mix( pow((vec4(1)-color) * (1 - lt), vec4(0.7)), pow(color * lt * vec4(1,1,0.9,1), vec4(0.9)), pow(wt,0.5));
-  out_Color = diffuse;
-#endif
 
-  
-  
   #if EXTRA_ATTRIBUTES
     for (int i = 0; i < EXTRA_ATTRIBUTES; i++){
       out_Color += IN.xtra[i];

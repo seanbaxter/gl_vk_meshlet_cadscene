@@ -84,7 +84,7 @@ endif()
 #####################################################################################
 # Source files for this project
 #
-file(GLOB VK_SOURCE_FILES *.cpp *.hpp *.inl *.h *.c)
+file(GLOB VK_SOURCE_FILES *.cpp *.hpp *.inl *.h *.c *.cxx)
 file(GLOB GLSL_FILES *.glsl)
 
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_mesh_shader.h)
@@ -106,6 +106,9 @@ source_group(shaders FILES
 set(UNIXLINKLIBS dl pthread openmp)
 
 add_executable(${VK_EXENAME} ${VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_FILES})
+set_source_files_properties(shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
+
+
 
 #####################################################################################
 # Linkage

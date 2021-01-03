@@ -83,6 +83,9 @@
 #define NORMAL_STRIDE (1 + EXTRA_ATTRIBUTES)
 
 #ifdef __cplusplus
+
+namespace nvmath { }
+
 namespace meshlettest
 {
   using namespace nvmath;

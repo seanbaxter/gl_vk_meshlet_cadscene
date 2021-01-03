@@ -30,16 +30,9 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_ARB_shading_language_include : enable
 
-#if !IS_VULKAN
-  #extension GL_NV_gpu_shader5 : require
-  #extension GL_NV_bindless_texture : require
-#endif
-
 #include "common.h"
 
 //////////////////////////////////////
-
-#if IS_VULKAN
 
   #if USE_PER_GEOMETRY_VIEWS
     uvec4 geometryOffsets = uvec4(0, 0, 0, 0);
@@ -68,33 +61,6 @@
   layout(binding=GEOMETRY_TEX_VBO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texVbo;
   layout(binding=GEOMETRY_TEX_ABO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texAbo;
 
-#else
-
-  #if USE_PER_GEOMETRY_VIEWS
-    uvec4 geometryOffsets = uvec4(0,0,0,0);
-  #else
-    layout(location = 0) uniform uvec4 geometryOffsets;
-    // x: mesh, y: prim, z: index, w: vertex
-  #endif
-
-  layout(std140, binding = UBO_SCENE_VIEW) uniform sceneBuffer {
-    SceneData scene;
-  };
-
-  layout(std140, binding = UBO_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
-
-  // keep in sync with binding order defined via GEOMETRY_
-  layout(std140, binding = UBO_GEOMETRY) uniform geometryBuffer{
-    uvec4*          meshletDescs;
-    uvec2*          primIndices;
-    usamplerBuffer  texIbo;
-    samplerBuffer   texVbo;
-    samplerBuffer   texAbo;
-  };
-
-#endif
 
 //////////////////////////////////////
 
@@ -112,11 +78,7 @@ layout(location=0) out VertexOut{
 
 void main()
 {
-#if IS_VULKAN
   uint meshletID = uint(gl_VertexIndex);
-#else
-  uint meshletID = uint(gl_VertexID);
-#endif
   uvec4 meshlet = meshletDescs[meshletID + geometryOffsets.x];
 
   vec3 bboxMin;

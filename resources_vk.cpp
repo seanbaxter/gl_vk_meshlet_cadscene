@@ -24,15 +24,12 @@
 
 #include "resources_vk.hpp"
 #include "renderer.hpp"
+#include "shaders.hxx"
 
 #include <imgui/imgui_impl_vk.h>
-
 #include <algorithm>
-
-#if HAS_OPENGL
-#include <nvgl/extensions_gl.hpp>
-#endif
 #include <nvh/nvprint.hpp>
+#include <nvvk/shaders_vk.hpp>
 
 #include "nvmeshlet_builder.hpp"
 
@@ -260,38 +257,9 @@ bool ResourcesVK::init(nvvk::Context* context, nvvk::SwapChain* swapChain, nvh::
 {
   m_fboChangeID  = 0;
   m_pipeChangeID = 0;
-
-#if HAS_OPENGL
-  {
-    nvvk::ContextCreateInfo info;
-    info.compatibleDeviceIndex = Resources::s_vkDevice;
-    setupVulkanContextInfo(info);
-    m_context = &m_contextInstance;
-    if(!m_context->init(info))
-    {
-      LOGI("vulkan device create failed (use debug build for more information)\n");
-      exit(-1);
-      return false;
-    }
-  }
-
-  {
-    // OpenGL drawing
-    VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    vkCreateSemaphore(m_context->m_device, &semCreateInfo, nullptr, &m_semImageRead);
-    vkCreateSemaphore(m_context->m_device, &semCreateInfo, nullptr, &m_semImageWritten);
-
-    // fire read to ensure queuesubmit never waits
-    glSignalVkSemaphoreNV((GLuint64)m_semImageRead);
-    glFlush();
-  }
-#else
-  {
-    m_context = context;
-    m_swapChain = swapChain;
-  }
-#endif
-
+  
+  m_context = context;
+  m_swapChain = swapChain;
   m_device      = m_context->m_device;
   m_physical    = m_context->m_physicalDevice;
   m_queue       = m_context->m_queueGCT.queue;
@@ -492,14 +460,6 @@ void ResourcesVK::deinit()
   }
 
   m_memAllocator.deinit();
-
-#if HAS_OPENGL
-  vkDestroySemaphore(m_device, m_semImageRead, NULL);
-  vkDestroySemaphore(m_device, m_semImageWritten, NULL);
-  m_device = NULL;
-
-  m_context->deinit();
-#endif
 }
 
 bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepend)
@@ -542,6 +502,14 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
   ///////////////////////////////////////////////////////////////////////////////////////////
 
   bool valid = m_shaderManager.areShaderModulesValid();
+
+  // Create the combined Circle shader module.
+  raster_module = nvvk::createShaderModule(
+    m_device,
+    (const uint32_t*)raster_shaders.spirv_data,
+    raster_shaders.spirv_size
+  );
+
 
   if(valid)
   {
@@ -829,10 +797,7 @@ bool ResourcesVK::initFramebuffer(int winWidth, int winHeight, int supersample, 
   {
     VkCommandBuffer cmd = createTempCmdBuffer();
 
-#if !HAS_OPENGL
     m_swapChain->cmdUpdateBarriers(cmd);
-#endif
-
     cmdImageTransition(cmd, m_framebuffer.imgColor, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_TRANSFER_READ_BIT,
                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
@@ -1144,9 +1109,12 @@ void ResourcesVK::initPipes()
       case MODE_REGULAR:
         pipelineInfo.stageCount = 2;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
-        stage0.module           = m_shaderManager.get(m_shaders.object_vertex);
+        stage0.module           = raster_module; //m_shaderManager.get(m_shaders.object_vertex);
+        stage0.pName            = raster_shaders.pairs[m_extraAttributes].vert;
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage1.module           = m_shaderManager.get(m_shaders.object_fragment);
+        stage1.module           = raster_module;
+        stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
+
         break;
       case MODE_BBOX:
         pipelineInfo.stageCount = 3;

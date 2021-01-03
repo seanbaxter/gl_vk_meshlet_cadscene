@@ -111,6 +111,9 @@ public:
     nvvk::ShaderModuleID bbox_fragment;
   };
 
+  // Circle-generated modules.
+  VkShaderModule raster_module;
+
   enum DrawMode
   {
     MODE_REGULAR,
