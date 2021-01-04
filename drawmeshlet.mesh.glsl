@@ -107,14 +107,10 @@ layout(triangles) out;
 // UNIFORMS
 
 
-  #if USE_PER_GEOMETRY_VIEWS
-    uvec4 geometryOffsets = uvec4(0, 0, 0, 0);
-  #else
-    layout(push_constant) uniform pushConstant{
-      uvec4     geometryOffsets;
-      // x: mesh, y: prim, z: index, w: vertex
-    };
-  #endif
+  layout(push_constant) uniform pushConstant{
+    uvec4     geometryOffsets;
+    // x: mesh, y: prim, z: index, w: vertex
+  };
 
   layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
     SceneData scene;
@@ -210,16 +206,11 @@ vec4 procVertex(const uint vert, uint vidx)
   OUT[vert].meshletID = meshletID;
   
 #if USE_CLIPPING
-#if IS_VULKAN
   // spir-v annoyance, doesn't unroll the loop and therefore cannot derive the number of clip distances used
   gl_MeshVerticesNV[vert].gl_ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
-#else
-  for (int i = 0; i < NUM_CLIPPING_PLANES; i++){
-    gl_MeshVerticesNV[vert].gl_ClipDistance[i] = dot(scene.wClipPlanes[i], vec4(wPos,1));
-  }
-#endif
+
 #endif
   
   return hPos;
@@ -488,15 +479,10 @@ void main()
       }
     }
     
-  #if IS_VULKAN
     uvec4 vote = subgroupBallot(triCount == 1);
     uint  tris = subgroupBallotBitCount(vote);
     uint  idxOffset = outTriangles + subgroupBallotExclusiveBitCount(vote);
-  #else
-    uint vote = ballotThreadNV(triCount == 1);
-    uint tris = bitCount(vote);
-    uint idxOffset = outTriangles + bitCount(vote & gl_ThreadLtMaskNV);
-  #endif
+
   
     if (triCount != 0) {
       uint idx = idxOffset * 3;
@@ -591,13 +577,9 @@ void main()
     for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
       uint vert = laneID + i * GROUP_SIZE;
       bool used = isVertexUsed( vert );
-    #if IS_VULKAN
       uvec4 vote  = subgroupBallot(used);
       uint  verts = subgroupBallotBitCount(vote);
-    #else
-      uint vote  = ballotThreadNV(used);
-      uint verts = bitCount(vote);
-    #endif
+
       usedVertices += verts;
     }
     if (laneID == 0){

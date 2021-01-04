@@ -41,12 +41,6 @@
 #define NVMESHLET_BLOCK_ELEMENTS    32
 #define NVMESHLET_PACK_ALIGNMENT    16
 
-#ifdef VULKAN 
-#define IS_VULKAN 1
-#endif
-
-  #define NVMESHLET_CLIP_Z_SIGNED 0
-
 ///////////////////////////////////////////////////
 
 // must not change
@@ -54,9 +48,5 @@
 #define WARP_STEPS 5
 
 ///////////////////////////////////////////////////
-
-// set to zero for less resources being generated
-// also reduces runtime binding costs
-#define USE_PER_GEOMETRY_VIEWS         0
 
 #endif

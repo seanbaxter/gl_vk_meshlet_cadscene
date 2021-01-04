@@ -144,11 +144,7 @@ uint getCullBits(vec4 hPos)
   cullBits |= hPos.x >  hPos.w ?  2 : 0;
   cullBits |= hPos.y < -hPos.w ?  4 : 0;
   cullBits |= hPos.y >  hPos.w ?  8 : 0;
-#if NVMESHLET_CLIP_Z_SIGNED
-  cullBits |= hPos.z < -hPos.w ? 16 : 0;
-#else
   cullBits |= hPos.z <  0      ? 16 : 0;
-#endif
   cullBits |= hPos.z >  hPos.w ? 32 : 0;
   cullBits |= hPos.w <= 0      ? 64 : 0; 
   return cullBits;

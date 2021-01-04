@@ -130,10 +130,6 @@ private:
         const CadSceneVK::Geometry& geo   = sceneVK.m_geometry[di.geometryIndex];
         int                         chunk = int(geo.allocation.chunkIndex);
 
-#if USE_PER_GEOMETRY_VIEWS
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, setup.container.getPipeLayout(), DSET_GEOMETRY, 1,
-                                setup.container.at(DSET_GEOMETRY).getSets() + di.geometryIndex, 0, nullptr);
-#else
         if(chunk != lastChunk || di.shorts != lastShorts)
         {
           int idx = chunk * 2 + (di.shorts ? 1 : 0);
@@ -153,7 +149,6 @@ private:
 
         vkCmdPushConstants(cmd, setup.container.getPipeLayout(),
                            VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV, 0, sizeof(offsets), offsets);
-#endif
 
         lastGeometry = di.geometryIndex;
       }
@@ -174,7 +169,7 @@ private:
         assigns.z = 0;
         assigns.w = 0;
         vkCmdPushConstants(cmd, setup.container.getPipeLayout(), VK_SHADER_STAGE_TASK_BIT_NV,
-                           USE_PER_GEOMETRY_VIEWS ? 0 : sizeof(uint32_t) * 4, sizeof(assigns), &assigns);
+                           sizeof(uint32_t) * 4, sizeof(assigns), &assigns);
       }
 
       uint32_t count  = useTask ? NVMeshlet::computeTasksCount(di.meshlet.count) : di.meshlet.count;

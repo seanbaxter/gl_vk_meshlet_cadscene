@@ -38,8 +38,7 @@
 
 // one of them provides uint8_t
 #extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
-#extension GL_NV_gpu_shader5 : enable
-  
+
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_ballot : require
 #extension GL_KHR_shader_subgroup_vote : require
@@ -60,14 +59,9 @@ layout(local_size_x=GROUP_SIZE) in;
 
 
 layout(push_constant) uniform pushConstant{
-#if !USE_PER_GEOMETRY_VIEWS
   uvec4     geometryOffsets;
-#endif
   uvec4     assigns;
 };
-#if USE_PER_GEOMETRY_VIEWS
-  uvec4 geometryOffsets = uvec4(0, 0, 0, 0);
-#endif
 
 layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
   SceneData scene;

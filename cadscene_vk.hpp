@@ -226,12 +226,6 @@ public:
     VkDescriptorBufferInfo meshletDesc;
     VkDescriptorBufferInfo meshletPrim;
     VkDescriptorBufferInfo meshletVert;
-
-#if USE_PER_GEOMETRY_VIEWS
-    VkBufferView vboView;
-    VkBufferView aboView;
-    VkBufferView vertView;
-#endif
   };
 
   struct Buffers

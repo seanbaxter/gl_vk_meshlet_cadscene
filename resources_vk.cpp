@@ -355,15 +355,11 @@ bool ResourcesVK::init(nvvk::Context* context, nvvk::SwapChain* swapChain, nvh::
 
       bindingsGeometry.initLayout();
 
-#if USE_PER_GEOMETRY_VIEWS
-      setup.container.initPipeLayout(0, 3);
-#else
       VkPushConstantRange range;
       range.offset = 0;
       range.size = sizeof(uint32_t) * 4;
       range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
       setup.container.initPipeLayout(0, 3, 1, &range);
-#endif
     }
 
     if(m_nativeMeshSupport)
@@ -396,19 +392,14 @@ bool ResourcesVK::init(nvvk::Context* context, nvvk::SwapChain* swapChain, nvh::
         bindingsGeometry.initLayout();
 
         VkPushConstantRange ranges[2];
-#if USE_PER_GEOMETRY_VIEWS
-        ranges[0].offset     = (USE_PER_GEOMETRY_VIEWS ? 0 : sizeof(uint32_t) * 4);
-        ranges[0].size       = sizeof(uint32_t) * 4;
-        ranges[0].stageFlags = VK_SHADER_STAGE_TASK_BIT_NV;
-#else
+
         ranges[0].offset = 0;
         ranges[0].size = sizeof(uint32_t) * 8;
         ranges[0].stageFlags = VK_SHADER_STAGE_TASK_BIT_NV;
         ranges[1].offset = 0;
         ranges[1].size = sizeof(uint32_t) * 4;
         ranges[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-#endif
-        setup.container.initPipeLayout(0, 3, USE_PER_GEOMETRY_VIEWS ? 1 : 2, ranges);
+        setup.container.initPipeLayout(0, 3, 2, ranges);
       }
     }
   }
@@ -1125,6 +1116,7 @@ void ResourcesVK::initPipes()
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = m_shaderManager.get(m_shaders.bbox_fragment);
         break;
+
       case MODE_MESH:
         pipelineInfo.stageCount = 2;
         stage0.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
@@ -1133,6 +1125,7 @@ void ResourcesVK::initPipes()
         stage1.module           = raster_module;
         stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
         break;
+        
       case MODE_TASK_MESH:
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_TASK_BIT_NV;
@@ -1359,8 +1352,7 @@ bool ResourcesVK::initScene(const CadScene& cadscene)
   m_scene.init(cadscene, m_device, m_physical, m_queue, m_queueFamily);
 
 
-  uint32_t geometryBindings =
-      USE_PER_GEOMETRY_VIEWS ? uint32_t(m_scene.m_geometry.size()) : uint32_t(m_scene.m_geometryMem.getChunkCount() * 2);
+  uint32_t geometryBindings = m_scene.m_geometryMem.getChunkCount() * 2;
 
   {
     // Allocation phase
@@ -1406,37 +1398,6 @@ bool ResourcesVK::initScene(const CadScene& cadscene)
         vkUpdateDescriptorSets(m_device, NV_ARRAY_SIZE(updateDescriptors), updateDescriptors, 0, 0);
       }
     }
-#if USE_PER_GEOMETRY_VIEWS
-    {
-      std::vector<VkWriteDescriptorSet> writeUpdates;
-
-      for(uint32_t g = 0; g < m_scene.m_geometry.size(); g++)
-      {
-        CadSceneVK::Geometry& geom = m_scene.m_geometry[g];
-
-        if(!geom.meshletDesc.range)
-          continue;
-
-        writeUpdates.push_back(m_setupBbox.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_SSBO_MESHLETDESC, &geom.meshletDesc));
-        writeUpdates.push_back(m_setupBbox.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_SSBO_PRIM, &geom.meshletPrim));
-        writeUpdates.push_back(m_setupBbox.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_VBO, &geom.vboView));
-        writeUpdates.push_back(m_setupBbox.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_ABO, &geom.aboView));
-        writeUpdates.push_back(m_setupBbox.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_IBO, &geom.vertView));
-
-
-        if(m_nativeMeshSupport)
-        {
-          writeUpdates.push_back(m_setupMeshTask.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_SSBO_MESHLETDESC, &geom.meshletDesc));
-          writeUpdates.push_back(m_setupMeshTask.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_SSBO_PRIM, &geom.meshletPrim));
-          writeUpdates.push_back(m_setupMeshTask.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_VBO, &geom.vboView));
-          writeUpdates.push_back(m_setupMeshTask.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_ABO, &geom.aboView));
-          writeUpdates.push_back(m_setupMeshTask.container.at(DSET_GEOMETRY).makeWrite(g, GEOMETRY_TEX_IBO, &geom.vertView));
-        }
-      }
-
-      vkUpdateDescriptorSets(m_device, (uint32_t)writeUpdates.size(), writeUpdates.data(), 0, 0);
-    }
-#else
     {
       std::vector<VkWriteDescriptorSet> writeUpdates;
 
@@ -1491,7 +1452,6 @@ bool ResourcesVK::initScene(const CadScene& cadscene)
 
       vkUpdateDescriptorSets(m_device, (uint32_t)writeUpdates.size(), writeUpdates.data(), 0, 0);
     }
-#endif
   }
 
   // fp16/
@@ -1602,10 +1562,7 @@ VkCommandBuffer ResourcesVK::createBoundingBoxCmdBuffer(VkCommandPool pool, cons
       const CadSceneVK::Geometry& geovk = m_scene.m_geometry[di.geometryIndex];
       int                         chunk = int(geovk.allocation.chunkIndex);
 
-#if USE_PER_GEOMETRY_VIEWS
-      vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, setup.container.getPipeLayout(), DSET_GEOMETRY, 1,
-                              setup.container.at(DSET_GEOMETRY).getSets() + di.geometryIndex, 0, nullptr);
-#else
+
       if(chunk != lastChunk || di.shorts != lastShorts)
       {
         int idx = chunk * 2 + (di.shorts ? 1 : 0);
@@ -1618,7 +1575,6 @@ VkCommandBuffer ResourcesVK::createBoundingBoxCmdBuffer(VkCommandPool pool, cons
 
       uint32_t offsets[4] = {uint32_t(geovk.meshletDesc.offset / sizeof(NVMeshlet::MeshletDesc)), 0, 0, 0};
       vkCmdPushConstants(cmd, setup.container.getPipeLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(offsets), offsets);
-#endif
 
       lastGeometry = di.geometryIndex;
     }

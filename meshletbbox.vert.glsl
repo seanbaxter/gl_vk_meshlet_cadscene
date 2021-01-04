@@ -34,13 +34,9 @@
 
 //////////////////////////////////////
 
-  #if USE_PER_GEOMETRY_VIEWS
-    uvec4 geometryOffsets = uvec4(0, 0, 0, 0);
-  #else
     layout(push_constant) uniform pushConstant{
       uvec4     geometryOffsets;
     };
-  #endif
 
   layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
     SceneData scene;

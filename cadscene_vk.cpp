@@ -274,17 +274,6 @@ void CadSceneVK::init(const CadScene& cadscene, VkDevice device, VkPhysicalDevic
         geom.meshletVert = geom.meshletPrim;
       }
 
-#if USE_PER_GEOMETRY_VIEWS
-      // views
-      geom.vboView = nvvk::createBufferView(
-          device, nvvk::makeBufferViewCreateInfo(geom.vbo, cadscene.m_cfg.fp16 ? VK_FORMAT_R16G16B16A16_SFLOAT :
-                                                                                 VK_FORMAT_R32G32B32A32_SFLOAT));
-      geom.aboView = nvvk::createBufferView(
-          device, nvvk::makeBufferViewCreateInfo(geom.abo, cadscene.m_cfg.fp16 ? VK_FORMAT_R16G16B16A16_SFLOAT :
-                                                                                 VK_FORMAT_R32G32B32A32_SFLOAT));
-      geom.vertView = nvvk::createBufferView(
-          device, nvvk::makeBufferViewCreateInfo(geom.meshletVert, cadgeom.useShorts ? VK_FORMAT_R16_UINT : VK_FORMAT_R32_UINT));
-#endif
     }
   }
 
@@ -308,18 +297,6 @@ void CadSceneVK::init(const CadScene& cadscene, VkDevice device, VkPhysicalDevic
 
 void CadSceneVK::deinit()
 {
-#if USE_PER_GEOMETRY_VIEWS
-  for(auto it = m_geometry.begin(); it != m_geometry.end(); it++)
-  {
-    if(it->aboView)
-    {
-      vkDestroyBufferView(m_device, it->vboView, NULL);
-      vkDestroyBufferView(m_device, it->aboView, NULL);
-      vkDestroyBufferView(m_device, it->vertView, NULL);
-    }
-  }
-#endif
-
   vkDestroyBuffer(m_device, m_buffers.materials, nullptr);
   vkDestroyBuffer(m_device, m_buffers.matrices, nullptr);
 
