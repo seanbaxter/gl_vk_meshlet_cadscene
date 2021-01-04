@@ -49,7 +49,6 @@
 #define USE_EARLY_CLIPPINGCULL 1
 #endif
 
-#if NVMESHLET_USE_PACKBASIC
   /*
   Pack
     // x
@@ -93,42 +92,6 @@ void decodeMeshlet( uvec4 meshletDesc,
   primStart  =  (packOffset + ((vMax + 1 + vidxDiv - 1) / vidxDiv) + 1) & ~1;
 }
 
-#elif NVMESHLET_USE_ARRAYS
-
-  /*
-  Array
-    // x
-    unsigned bboxMinX   : 8;
-    unsigned bboxMinY   : 8;
-    unsigned bboxMinZ   : 8;
-    unsigned vertMax    : 8;
-        
-    // y
-    unsigned bboxMaxX   : 8;
-    unsigned bboxMaxY   : 8;
-    unsigned bboxMaxZ   : 8;
-    unsigned primMax    : 8;
-    
-    // z
-    unsigned vertBegin  : 20;
-    signed   coneX      : 8;
-    unsigned coneAngleL : 4;
-
-    // w
-    unsigned primBegin  : 20;
-    signed   coneY      : 8;
-    unsigned coneAngleU : 4;
-  */
-
-void decodeMeshlet(uvec4 meshletDesc, out uint vertMax, out uint primMax, out uint vertBegin, out uint primBegin)
-{
-  vertBegin = (meshletDesc.z & 0xFFFFF) * NVMESHLET_VERTEX_ALIGNMENT;
-  primBegin = (meshletDesc.w & 0xFFFFF) * NVMESHLET_PRIM_ALIGNMENT;
-  vertMax   = (meshletDesc.x >> 24);
-  primMax   = (meshletDesc.y >> 24);
-}
-
-#endif
 
 bool isMeshletValid(uvec4 meshletDesc)
 {
@@ -167,14 +130,7 @@ vec3 oct_to_vec3(vec2 e) {
 
 void decodeNormalAngle(uvec4 meshletDesc, in ObjectData object, out vec3 oNormal, out float oAngle)
 {
-#if NVMESHLET_USE_PACKBASIC
   uint packedVec =  meshletDesc.z;
-#else
-  uint packedVec =  (((meshletDesc.z >> 20) & 0xFF) << 0)  |
-                    (((meshletDesc.w >> 20) & 0xFF) << 8)  |
-                    (((meshletDesc.z >> 28)       ) << 16) |
-                    (((meshletDesc.w >> 28)       ) << 20);
-#endif
   vec3 unpackedVec = unpackSnorm4x8(packedVec).xyz;
   
   oNormal = oct_to_vec3(unpackedVec.xy) * object.winding;
@@ -220,29 +176,9 @@ bool pixelBboxCull(vec2 pixelMin, vec2 pixelMax){
 
 vec4 getBoxCorner(vec3 bboxMin, vec3 bboxMax, int n)
 {
-#if 1
   bvec3 useMax = bvec3((n & 1) != 0, (n & 2) != 0, (n & 4) != 0);
   return vec4(mix(bboxMin, bboxMax, useMax),1);
-#else
-  switch(n){
-  case 0:
-    return vec4(bboxMin.x,bboxMin.y,bboxMin.z,1);
-  case 1:
-    return vec4(bboxMax.x,bboxMin.y,bboxMin.z,1);
-  case 2:
-    return vec4(bboxMin.x,bboxMax.y,bboxMin.z,1);
-  case 3:
-    return vec4(bboxMax.x,bboxMax.y,bboxMin.z,1);
-  case 4:
-    return vec4(bboxMin.x,bboxMin.y,bboxMax.z,1);
-  case 5:
-    return vec4(bboxMax.x,bboxMin.y,bboxMax.z,1);
-  case 6:
-    return vec4(bboxMin.x,bboxMax.y,bboxMax.z,1);
-  case 7:
-    return vec4(bboxMax.x,bboxMax.y,bboxMax.z,1);
-  }
-#endif
+
 }
 
 bool earlyCull(uvec4 meshletDesc, in ObjectData object)
@@ -338,13 +274,11 @@ int testTriangle(vec2 a, vec2 b, vec2 c, float winding, bool frustum)
   vec2 ab = b.xy - a.xy;
   vec2 ac = c.xy - a.xy;
   float cross_product = ab.x * ac.y - ab.y * ac.x;   
-#if IS_VULKAN
+
   // Vulkan's upper-left window origin means that screen coordinates 
   // are reversed relative to OpenGL's.  Reverse the sign of the
   // cross-product to compensate.
   cross_product = -cross_product;
-#endif
-  if (cross_product * winding < 0) return 0;
 #endif
 
 #if USE_VIEWPORTCULL || USE_SUBPIXELCULL

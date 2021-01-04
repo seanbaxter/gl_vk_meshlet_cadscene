@@ -30,7 +30,6 @@
 #version 450
 
 #extension GL_GOOGLE_include_directive : enable
-#extension GL_ARB_shading_language_include : enable
 
 #include "config.h"
 
@@ -40,7 +39,6 @@
 
 //////////////////////////////////////
 
-#if IS_VULKAN
   // one of them provides uint8_t
   #extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
   #extension GL_NV_gpu_shader5 : enable
@@ -48,12 +46,7 @@
   #extension GL_KHR_shader_subgroup_basic : require
   #extension GL_KHR_shader_subgroup_ballot : require
   #extension GL_KHR_shader_subgroup_vote : require
-#else
-  #extension GL_NV_gpu_shader5 : require
-  #extension GL_NV_bindless_texture : require
-  #extension GL_NV_shader_thread_group : require
-  #extension GL_NV_shader_thread_shuffle : require
-#endif
+
 
 //////////////////////////////////////
 
@@ -113,7 +106,6 @@ layout(triangles) out;
 /////////////////////////////////////
 // UNIFORMS
 
-#if IS_VULKAN
 
   #if USE_PER_GEOMETRY_VIEWS
     uvec4 geometryOffsets = uvec4(0, 0, 0, 0);
@@ -148,40 +140,6 @@ layout(triangles) out;
   layout(binding=GEOMETRY_TEX_IBO,  set=DSET_GEOMETRY)  uniform usamplerBuffer texIbo;
   layout(binding=GEOMETRY_TEX_VBO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texVbo;
   layout(binding=GEOMETRY_TEX_ABO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texAbo;
-
-#else
-
-  #if USE_PER_GEOMETRY_VIEWS
-    uvec4 geometryOffsets = uvec4(0,0,0,0);
-  #else
-    layout(location = 0) uniform uvec4 geometryOffsets;
-    // x: mesh, y: prim, z: index, w: vertex
-  #endif
-
-  layout(std140, binding = UBO_SCENE_VIEW) uniform sceneBuffer {
-    SceneData scene;
-  };
-  layout(std140, binding = SSBO_SCENE_STATS) buffer statsBuffer{
-    CullStats stats;
-  };
-
-  layout(std140, binding = UBO_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
-
-  // keep in sync with binding order defined via GEOMETRY_
-  layout(std140, binding = UBO_GEOMETRY) uniform geometryBuffer{
-    uvec4*          meshletDescs;
-    uvec2*          primIndices;
-    usamplerBuffer  texIbo;
-    samplerBuffer   texVbo;
-    samplerBuffer   texAbo;
-  };
-  
-  #define primIndices1  ((uint*)primIndices)
-  #define primIndices2  primIndices
-  
-#endif
 
 /////////////////////////////////////////////////
 
@@ -416,36 +374,22 @@ void main()
   uvec4 desc = meshletDescs[meshletID + geometryOffsets.x];
   uint vertMax;
   uint primMax;
-#if NVMESHLET_USE_PACKBASIC
-    uint vidxStart;
-    uint vidxBits;
-    uint vidxDiv;
-    uint primStart;
-    uint primDiv;
-    decodeMeshlet(desc, vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv);
 
-    vidxStart += geometryOffsets.y / 4;
-    primStart += geometryOffsets.y / 4;
+  uint vidxStart;
+  uint vidxBits;
+  uint vidxDiv;
+  uint primStart;
+  uint primDiv;
+  decodeMeshlet(desc, vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv);
 
-#elif NVMESHLET_USE_ARRAYS
-    uint vertBegin;
-    uint primBegin;
-    decodeMeshlet(desc, vertMax, primMax, vertBegin, primBegin);
+  vidxStart += geometryOffsets.y / 4;
+  primStart += geometryOffsets.y / 4;
 
-    vertBegin += geometryOffsets.z;
-    primBegin += geometryOffsets.y;
-
-
-#else
-  #error "NVMESHLET_PACKING not supported"
-#endif
 
   uint primCount = primMax + 1;
   uint vertCount = vertMax + 1;
   
 
-  // LOAD PHASE
-#if NVMESHLET_USE_PACKBASIC
   // VERTEX PROCESSING
   
   for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) 
@@ -490,61 +434,6 @@ void main()
     }
   }
 
-#elif NVMESHLET_USE_ARRAYS
-  // VERTEX PROCESSING
-  for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
-    
-    uint vert = laneID + i * GROUP_SIZE;
-    
-    clearVertexUsed( vert );
-    
-    // Use "min" to avoid branching
-    // this ensures the compiler can batch loads
-    // prior writes/processing
-    //
-    // Most of the time we will have fully saturated vertex utilization,
-    // but we may compute the last vertex redundantly.
-    {
-      uint vidx = texelFetch(texIbo, int(vertBegin + min(vert,vertMax))).x;
-      
-      vidx += geometryOffsets.w;
-      
-      vec4 hPos = procVertex(vert, vidx);
-      setVertexClip(vert, getCullBits(hPos));
-    
-    #if USE_EARLY_ATTRIBUTES
-      procAttributes(vert, vidx);
-    #else
-      writeVertexIndex(vert, vidx);
-    #endif
-    }
-  }
-  
-  // PRIMITIVE TOPOLOGY
-  // 
-  // FITTED_UINT8 gives fastest code and best bandwidth usage, at the sacrifice of
-  // not maximizing actual primCount (primCount within meshlet may be always smaller than NVMESHLET_MAX_PRIMITIVES)
-
-  // each run does read 8 single byte indices per thread
-  // the number of primCount was clamped in such fashion in advance
-  // that it's guaranteed that gl_PrimitiveIndicesNV is sized big enough to allow the full 32-bit writes
-  {
-    uint readBegin = primBegin / 8;
-    uint readIndex = primCount * 3 - 1;
-    uint readMax = readIndex / 8;
-
-    for (uint i = 0; i < uint(NVMSH_PRIMITIVE_INDICES_RUNS); i++)
-    {
-      uint read = laneID + i * GROUP_SIZE;
-      uint readUsed = min(read, readMax);
-      uvec2 topology = primIndices2[readBegin + readUsed];
-      nvmsh_writePackedPrimitiveIndices4x8NV(readUsed * 8 + 0, topology.x);
-      nvmsh_writePackedPrimitiveIndices4x8NV(readUsed * 8 + 4, topology.y);
-    }
-  }
-#else
-  #error "NVMESHLET_PACKING not supported"
-#endif
 
 #if !USE_MESH_SHADERCULL
   if (laneID == 0) {

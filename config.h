@@ -45,19 +45,7 @@
 #define IS_VULKAN 1
 #endif
 
-#ifndef IS_VULKAN
-#define IS_VULKAN 0
-#endif
-
-#if IS_VULKAN && !defined(__cplusplus)
-#extension GL_KHR_vulkan_glsl : enable
-#endif
-
-#if IS_VULKAN
   #define NVMESHLET_CLIP_Z_SIGNED 0
-#else
-  #define NVMESHLET_CLIP_Z_SIGNED 1
-#endif
 
 ///////////////////////////////////////////////////
 
@@ -70,13 +58,5 @@
 // set to zero for less resources being generated
 // also reduces runtime binding costs
 #define USE_PER_GEOMETRY_VIEWS         0
-#if defined(__cplusplus)
-
-  enum MeshletBuilderType {
-    MESHLET_BUILDER_PACKBASIC,
-    MESHLET_BUILDER_ARRAYS,
-  };
-
-#endif
 
 #endif

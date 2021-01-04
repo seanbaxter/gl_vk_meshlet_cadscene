@@ -292,8 +292,6 @@ public:
     // must not change order
     uint32_t           meshVertexCount    = 64;
     uint32_t           meshPrimitiveCount = 126;
-
-    MeshletBuilderType meshBuilder        = MESHLET_BUILDER_PACKBASIC;
   };
 
   std::vector<Material>   m_materials;

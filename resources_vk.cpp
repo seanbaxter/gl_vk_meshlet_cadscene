@@ -1109,13 +1109,13 @@ void ResourcesVK::initPipes()
       case MODE_REGULAR:
         pipelineInfo.stageCount = 2;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
-        stage0.module           = raster_module; //m_shaderManager.get(m_shaders.object_vertex);
+        stage0.module           = raster_module;
         stage0.pName            = raster_shaders.pairs[m_extraAttributes].vert;
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage1.module           = raster_module;
         stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
-
         break;
+
       case MODE_BBOX:
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
@@ -1130,7 +1130,8 @@ void ResourcesVK::initPipes()
         stage0.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
         stage0.module           = m_shaderManager.get(m_shaders.object_mesh);
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage1.module           = m_shaderManager.get(m_shaders.object_fragment);
+        stage1.module           = raster_module;
+        stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
         break;
       case MODE_TASK_MESH:
         pipelineInfo.stageCount = 3;
@@ -1139,7 +1140,8 @@ void ResourcesVK::initPipes()
         stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
         stage1.module           = m_shaderManager.get(m_shaders.object_task_mesh);
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage2.module           = m_shaderManager.get(m_shaders.object_fragment);
+        stage2.module           = raster_module;
+        stage2.pName            = raster_shaders.pairs[m_extraAttributes].frag;
         break;
     }
 

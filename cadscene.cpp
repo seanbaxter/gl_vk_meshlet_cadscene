@@ -624,8 +624,6 @@ void CadScene::buildMeshletTopology(const CSFile* csf)
 
 #define MESHLET_ERRORCHECK 0
 
-  if(m_cfg.meshBuilder == MESHLET_BUILDER_PACKBASIC)
-  {
     NVMeshlet::PackBasicBuilder meshletBuilder;
     meshletBuilder.setup(m_cfg.meshVertexCount, m_cfg.meshPrimitiveCount, false);
 
@@ -696,81 +694,8 @@ void CadScene::buildMeshletTopology(const CSFile* csf)
         meshActualSizeTotal += meshActualSize;
       }
     }
-  }
-  else
-  {
-    NVMeshlet::ArrayBuilder<uint32_t> meshletBuilder;
-    meshletBuilder.setup(m_cfg.meshVertexCount, m_cfg.meshPrimitiveCount, false);
-
-
-#pragma omp parallel for
-    for(int g = 0; g < csf->numGeometries; g++)
-    {
-      const CSFGeometry*    csfgeom = csf->geometries + g;
-      Geometry&             geom    = m_geometry[g];
-
-      NVMeshlet::ArrayBuilder<uint32_t>::MeshletGeometry meshletGeometry;
-
-      uint32_t               numMeshlets = 0;
-      uint32_t               indexOffset = 0;
-      const unsigned int*    indices     = csfgeom->indexSolid;
-      const CSFGeometryPart* parts       = csfgeom->parts;
-      for(size_t p = 0; p < geom.parts.size(); p++)
-      {
-        uint32_t numIndex              = parts[p].numIndexSolid;
-        geom.parts[p].meshSolid.offset = numMeshlets;
-
-        uint32_t processedIndices = meshletBuilder.buildMeshlets(meshletGeometry, numIndex, indices + indexOffset);
-        if(processedIndices != numIndex)
-        {
-          LOGE("warning: geometry meshlet incomplete %d\n", g);
-        }
-
-        geom.parts[p].meshSolid.count = (uint32_t)meshletGeometry.meshletDescriptors.size() - numMeshlets;
-        numMeshlets                   = (uint32_t)meshletGeometry.meshletDescriptors.size();
-        indexOffset += numIndex;
-      }
-
-      geom.meshlet.numMeshlets = int(meshletGeometry.meshletDescriptors.size());
-
-      meshletBuilder.buildMeshletEarlyCulling(meshletGeometry, m_bboxes[g].min.vec_array, m_bboxes[g].max.vec_array,
-                                              (const float*)geom.vboData, sizeof(Vertex));
-      if(m_cfg.verbose)
-      {
-#if MESHLET_ERRORCHECK
-        NVMeshlet::StatusCode errorcode = meshletBuilder.errorCheck(meshletGeometry, 0, csfgeom->numVertices - 1,
-                                                                    csfgeom->numIndexSolid, csfgeom->indexSolid);
-        if(errorcode)
-        {
-          LOGE("geometry %d: meshlet error %d\n", g, errorcode);
-        }
-#endif
-
-        NVMeshlet::Stats statsLocal;
-        meshletBuilder.appendStats(meshletGeometry, statsLocal);
-
-#pragma omp critical
-        {
-          statsGlobal.append(statsLocal);
-        }
-      }
-
-      fillMeshletTopology(meshletGeometry, geom.meshlet, geom.useShorts);
-
-      geom.meshSize        = geom.meshlet.descSize;
-      geom.meshIndicesSize = NVMeshlet::arrayIndicesAlignedSize(geom.meshlet.primSize) + geom.meshlet.vertSize;
-
-      size_t meshActualSize = geom.meshlet.descSize + geom.meshlet.primSize + geom.meshlet.vertSize;
-
-#pragma omp critical
-      {
-        m_meshSize += geom.meshSize + geom.meshIndicesSize;
-        groups += numMeshlets;
-        meshActualSizeTotal += meshActualSize;
-      }
-    }
-  }
-
+  
+  
   LOGI("meshlet config: %d vertices, %d primitives\n", m_cfg.meshVertexCount, m_cfg.meshPrimitiveCount);
 
   if(m_cfg.verbose)

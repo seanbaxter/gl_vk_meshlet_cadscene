@@ -106,7 +106,9 @@ source_group(shaders FILES
 set(UNIXLINKLIBS dl pthread openmp)
 
 add_executable(${VK_EXENAME} ${VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_FILES})
-set_source_files_properties(shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
+set_source_files_properties(raster_shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
+set_source_files_properties(bbox_shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
+set_source_files_properties(mesh_shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
 
 
 

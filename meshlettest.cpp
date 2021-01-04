@@ -357,8 +357,6 @@ std::string Sample::getShaderPrepend()
 
   return prepend + nvh::stringFormat("#define NVMESHLET_VERTEX_COUNT %d\n", m_modelConfig.meshVertexCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
-         + nvh::stringFormat("#define NVMESHLET_USE_PACKBASIC %d\n", m_modelConfig.meshBuilder == MESHLET_BUILDER_PACKBASIC ? 1 : 0)
-         + nvh::stringFormat("#define NVMESHLET_USE_ARRAYS %d\n", m_modelConfig.meshBuilder == MESHLET_BUILDER_ARRAYS ? 1 : 0)
          + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
          + nvh::stringFormat("#define EXTRA_ATTRIBUTES %d\n", m_modelConfig.extraAttributes)
          + nvh::stringFormat("#define USE_MESH_SHADERCULL %d\n", m_tweak.useMeshShaderCull ? 1 : 0)
