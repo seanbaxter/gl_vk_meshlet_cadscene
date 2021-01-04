@@ -178,7 +178,6 @@ public:
     bool     colorize          = false;
     bool     showBboxes        = false;
     bool     showNormals       = false;
-    bool     useStats          = false;
     float    fov               = 45.0f;
     int      renderer          = 0;
     int      viewPoint         = 0;
@@ -342,7 +341,6 @@ std::string Sample::getShaderPrepend()
          + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
          + nvh::stringFormat("#define EXTRA_ATTRIBUTES %d\n", m_modelConfig.extraAttributes)
-         + nvh::stringFormat("#define USE_STATS %d\n", m_tweak.useStats ? 1 : 0)
          + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0)
          + nvh::stringFormat("#define SHOW_NORMAL %d\n", m_tweak.showNormals ? 1 : 0);
 }
@@ -692,22 +690,6 @@ void Sample::processUI(int width, int height, double time)
       ImGui::Text("Original Index Size [MB]: %4zu", m_scene.m_iboSize / (1024 * 1024));
       ImGui::Text("       Meshlet Size [MB]: %4zu", m_scene.m_meshSize / (1024 * 1024));
     }
-    ImGui::Checkbox("generate stats", &m_tweak.useStats);
-    if(m_tweak.useStats)
-    {
-      ImGui::Separator();
-      CullStats stats;
-      m_resources->getStats(stats);
-      ImGui::Text("task total:  %9d", stats.tasksInput);
-      //ImGui::Text("task output: %9d - %2.1f", stats.tasksOutput, double(stats.tasksOutput)/double(stats.tasksInput)*100);
-      ImGui::Text("mesh total:  %9d", stats.meshletsInput);
-      ImGui::Text("mesh output: %9d - %2.1f", stats.meshletsOutput,
-                  double(stats.meshletsOutput) / double(stats.meshletsInput) * 100);
-      ImGui::Text("tri  total:  %9d", stats.trisInput);
-      ImGui::Text("tri  output: %9d - %2.1f", stats.trisOutput, double(stats.trisOutput) / double(stats.trisInput) * 100);
-      ImGui::Text("vert input:  %9d", stats.attrInput);
-      ImGui::Text("attr read:   %9d - %2.1f", stats.attrOutput, double(stats.attrOutput) / double(stats.attrInput) * 100);
-    }
     //m_ui.enumCombobox(GUI_MSAA, "msaa", &m_tweak.msaa);
   }
   ImGui::End();
@@ -729,7 +711,7 @@ void Sample::think(double time)
                            m_windowState.m_mouseButtonFlags, m_windowState.m_mouseWheel);
 
   if(m_windowState.onPress(KEY_R)
-     || m_tweak.useStats != m_lastTweak.useStats || m_modelConfig.extraAttributes != m_lastModelConfig.extraAttributes
+     ||m_modelConfig.extraAttributes != m_lastModelConfig.extraAttributes
      || m_modelConfig.meshPrimitiveCount != m_lastModelConfig.meshPrimitiveCount
      || m_modelConfig.meshVertexCount != m_lastModelConfig.meshVertexCount || m_shaderprepend != m_lastShaderPrepend
      || m_tweak.showBboxes != m_lastTweak.showBboxes || m_tweak.showNormals != m_lastTweak.showNormals)
@@ -764,7 +746,7 @@ void Sample::think(double time)
 
   if(sceneChanged || m_tweak.renderer != m_lastTweak.renderer || m_tweak.objectFrom != m_lastTweak.objectFrom
      || m_tweak.objectNum != m_lastTweak.objectNum 
-     || m_tweak.useStats != m_lastTweak.useStats || m_tweak.maxGroups != m_lastTweak.maxGroups
+     || m_tweak.maxGroups != m_lastTweak.maxGroups
      || m_tweak.indexThreshold != m_lastTweak.indexThreshold)
   {
     m_resources->synchronize();
@@ -975,8 +957,6 @@ void Sample::setupConfigParameters()
 
   m_parameterList.add("showbbox", &m_tweak.showBboxes);
   m_parameterList.add("shownormals", &m_tweak.showNormals);
-
-  m_parameterList.add("stats", &m_tweak.useStats);
 
   m_parameterList.add("clippos", m_tweak.clipPosition.vec_array, nullptr, 3);
 

@@ -123,9 +123,6 @@ void main()
   if (laneID == 0) {
     gl_TaskCountNV = tasks;
     OUT.baseID = baseID;
-    #if USE_STATS
-      atomicAdd(stats.tasksOutput, 1);
-    #endif
   }
 
   uint idxOffset = subgroupBallotExclusiveBitCount(vote);

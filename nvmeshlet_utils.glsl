@@ -223,14 +223,6 @@ bool earlyCull(uvec4 meshletDesc, in ObjectData object)
 
 //////////////////////////////////////////////////////////////////
 
-#ifndef USE_VIEWPORTCULL
-#define USE_VIEWPORTCULL 1
-#endif
-
-#ifndef USE_TRIANGLECULL
-#define USE_TRIANGLECULL 1
-#endif
-
 
 vec2 getScreenPos(vec4 hPos)
 {
@@ -240,11 +232,7 @@ vec2 getScreenPos(vec4 hPos)
 
 int testTriangle(vec2 a, vec2 b, vec2 c, float winding, bool frustum)
 {
-#if !USE_TRIANGLECULL
-  { return 1; }
-#endif
 
-#if USE_BACKFACECULL
   // back face culling
   vec2 ab = b.xy - a.xy;
   vec2 ac = c.xy - a.xy;
@@ -254,24 +242,17 @@ int testTriangle(vec2 a, vec2 b, vec2 c, float winding, bool frustum)
   // are reversed relative to OpenGL's.  Reverse the sign of the
   // cross-product to compensate.
   cross_product = -cross_product;
-#endif
 
-#if USE_VIEWPORTCULL || USE_SUBPIXELCULL
+
   // compute the min and max in each X and Y direction
   vec2 pixelMin = min(a,min(b,c));
   vec2 pixelMax = max(a,max(b,c));
   
   pixelBboxEpsilon(pixelMin, pixelMax);
-#endif
 
-#if USE_VIEWPORTCULL
   // viewport culling
   if (frustum && ((pixelMax.x < 0) || (pixelMin.x >= scene.viewportf.x) || (pixelMax.y < 0) || (pixelMin.y >= scene.viewportf.y))) return 0;
-#endif
 
-#if USE_SUBPIXELCULL
-  if (pixelBboxCull(pixelMin, pixelMax)) return 0;
-#endif 
   return 1;
 }
 

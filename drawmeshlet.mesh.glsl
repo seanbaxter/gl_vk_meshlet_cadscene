@@ -30,6 +30,7 @@
 #version 450
 
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_ARB_shading_language_include : enable
 
 #include "config.h"
 
@@ -47,7 +48,6 @@
   #extension GL_KHR_shader_subgroup_ballot : require
   #extension GL_KHR_shader_subgroup_vote : require
 
-
 //////////////////////////////////////
 
 #include "common.h"
@@ -61,18 +61,18 @@ layout(local_size_x=GROUP_SIZE) in;
 layout(max_vertices=NVMESHLET_VERTEX_COUNT, max_primitives=NVMESHLET_PRIMITIVE_COUNT) out;
 layout(triangles) out;
 
-#define USE_MESH_SHADERCULL 1
-#define USE_TASK_STAGE 1
-#define USE_MESH_FRUSTUMCULL 0
+#define USE_MESH_SHADERCULL     0
+#define USE_EARLY_ATTRIBUTES    1
+#define USE_TASK_STAGE          1
+#define USE_MESH_FRUSTUMCULL    0
 
-/////////////////////////////////////
+
 // UNIFORMS
 
-
-  layout(push_constant) uniform pushConstant{
-    uvec4     geometryOffsets;
-    // x: mesh, y: prim, z: index, w: vertex
-  };
+    layout(push_constant) uniform pushConstant{
+      uvec4     geometryOffsets;
+      // x: mesh, y: prim, z: index, w: vertex
+    };
 
   layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
     SceneData scene;
@@ -106,16 +106,12 @@ layout(triangles) out;
 /////////////////////////////////////////////////
 // MESH INPUT
 
-#if USE_TASK_STAGE
   taskNV in Task {
     uint    baseID;
     uint8_t subIDs[GROUP_SIZE];
   } IN;
   // gl_WorkGroupID.x runs from [0 .. parentTask.gl_TaskCountNV - 1]
   uint meshletID = IN.baseID + IN.subIDs[gl_WorkGroupID.x];
-#else
-  uint meshletID = gl_WorkGroupID.x;
-#endif
   uint laneID = gl_LocalInvocationID.x;
 
 
@@ -171,7 +167,6 @@ vec4 procVertex(const uint vert, uint vidx)
   gl_MeshVerticesNV[vert].gl_ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
-
   
   return hPos;
 }
@@ -180,7 +175,6 @@ vec4 procVertex(const uint vert, uint vidx)
 // let's make use of a dedicated load phase.
 // (explained at the end of the file in the USE_BATCHED_LATE_FETCH section)
 
-  
   // if you never intend to use the above mechanism,
   // you can express the attribute processing more like a regular
   // vertex shader
@@ -197,58 +191,12 @@ vec4 procVertex(const uint vert, uint vidx)
     }
   #endif
   }
-  
 
 //////////////////////////////////////////////////
 // MESH EXECUTION
-
-#if !USE_EARLY_ATTRIBUTES
-  void writeVertexIndex(uint vert, uint val)
-  {
-    OUT[vert].wNormal.x = uintBitsToFloat(val);
-  }
-  
-  uint readVertexIndex(uint vert)
-  {
-    return floatBitsToUint(OUT[vert].wNormal.x);
-  }
-    
-  bool isVertexUsed(uint vert)
-  {
-    return OUT[vert].wNormal.y != 0;
-  }
-
-  void clearVertexUsed(uint vert) {
-    OUT[vert].wNormal.y = 0;
-  }
-
-  void setVertexUsed(uint vert) {
-    OUT[vert].wNormal.y = 1;
-  }
-  
-  uint getVertexClip(uint vert) {
-    return floatBitsToUint(OUT[vert].wNormal.z);
-  }
-
-  void setVertexClip(uint vert, uint mask) {
-  #if USE_MESH_FRUSTUMCULL
-    OUT[vert].wNormal.z = uintBitsToFloat(mask);
-  #endif
-  }
-#else
-  void clearVertexUsed(uint vert) {
-    // dummy
-  }
-  void setVertexUsed(uint vert) {
-    // dummy
-  }
-  void setVertexClip(uint vert, uint mask) {
-    // dummy
-  }
   uint getVertexClip(uint vert) {
     return getCullBits(gl_MeshVerticesNV[vert].gl_Position);
   }
-#endif
 
   vec2 getVertexScreen(uint vert) {
     return getScreenPos(gl_MeshVerticesNV[vert].gl_Position);
@@ -287,29 +235,23 @@ void main()
   uvec4 desc = meshletDescs[meshletID + geometryOffsets.x];
   uint vertMax;
   uint primMax;
+    uint vidxStart;
+    uint vidxBits;
+    uint vidxDiv;
+    uint primStart;
+    uint primDiv;
+    decodeMeshlet(desc, vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv);
 
-  uint vidxStart;
-  uint vidxBits;
-  uint vidxDiv;
-  uint primStart;
-  uint primDiv;
-  decodeMeshlet(desc, vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv);
-
-  vidxStart += geometryOffsets.y / 4;
-  primStart += geometryOffsets.y / 4;
-
+    vidxStart += geometryOffsets.y / 4;
+    primStart += geometryOffsets.y / 4;
 
   uint primCount = primMax + 1;
   uint vertCount = vertMax + 1;
-  
-
-  // VERTEX PROCESSING
   
   for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) 
   {
     uint vert = laneID + i * GROUP_SIZE;
     uint vertLoad = min(vert, vertMax);
-    clearVertexUsed(vert);
     {
       uint idx   = (vertLoad) / vidxDiv;
       uint shift = (vertLoad) & (vidxDiv-1);
@@ -321,13 +263,8 @@ void main()
       vidx += geometryOffsets.w;
     
       vec4 hPos = procVertex(vert, vidx);
-      setVertexClip(vert, getCullBits(hPos));
       
-    #if USE_EARLY_ATTRIBUTES
       procAttributes(vert, vidx);
-    #else
-      writeVertexIndex(vert, vidx);
-    #endif
     }
   }
   
@@ -347,170 +284,6 @@ void main()
     }
   }
 
-
-#if !USE_MESH_SHADERCULL
-  if (laneID == 0) {
+  if (laneID == 0)
     gl_PrimitiveCountNV = primCount;
-  #if USE_STATS
-    atomicAdd(stats.meshletsOutput, 1);
-    atomicAdd(stats.trisOutput, primCount);
-    atomicAdd(stats.attrInput,  vertCount);
-    atomicAdd(stats.attrOutput, vertCount);
-  #endif
-  }
-#else
-  uint outTriangles = 0;
-  
-  NVMSH_BARRIER();
-  
-  // PRIMITIVE PHASE
- 
-  const uint primRuns = (primCount + GROUP_SIZE - 1) / GROUP_SIZE;
-  for (uint i = 0; i < primRuns; i++) {
-    uint triCount = 0;
-    uint topology = 0;
-    
-    uint prim = laneID + i * GROUP_SIZE;
-    
-    if (prim <= primMax) {
-      uint idx = prim * 3;
-      uint ia = gl_PrimitiveIndicesNV[idx + 0];
-      uint ib = gl_PrimitiveIndicesNV[idx + 1];
-      uint ic = gl_PrimitiveIndicesNV[idx + 2];
-      topology = ia | (ib << NVMSH_INDEX_BITS) | (ic << (NVMSH_INDEX_BITS*2));
-      
-      // build triangle
-      vec2 a = getVertexScreen(ia);
-      vec2 b = getVertexScreen(ib);
-      vec2 c = getVertexScreen(ic);
-
-    #if USE_MESH_FRUSTUMCULL
-      uint abits = getVertexClip(ia);
-      uint bbits = getVertexClip(ib);
-      uint cbits = getVertexClip(ic);
-      
-      triCount = testTriangle(a.xy, b.xy, c.xy, 1.0, abits, bbits, cbits);
-    #else
-      triCount = testTriangle(a.xy, b.xy, c.xy, 1.0, false);
-    #endif
-      
-      if (triCount != 0) {
-        setVertexUsed(ia);
-        setVertexUsed(ib);
-        setVertexUsed(ic);
-      }
-    }
-    
-    uvec4 vote = subgroupBallot(triCount == 1);
-    uint  tris = subgroupBallotBitCount(vote);
-    uint  idxOffset = outTriangles + subgroupBallotExclusiveBitCount(vote);
-
-  
-    if (triCount != 0) {
-      uint idx = idxOffset * 3;
-      gl_PrimitiveIndicesNV[idx + 0] = NVMSH_PACKED4X8_GET(topology, 0);
-      gl_PrimitiveIndicesNV[idx + 1] = NVMSH_PACKED4X8_GET(topology, 1);
-      gl_PrimitiveIndicesNV[idx + 2] = NVMSH_PACKED4X8_GET(topology, 2);
-    }
-    
-    outTriangles += tris;
-  }
-
-  
-  NVMSH_BARRIER();
-  
-  if (laneID == 0) {
-    gl_PrimitiveCountNV = outTriangles;
-  #if USE_STATS
-    atomicAdd(stats.meshletsOutput, 1);
-    atomicAdd(stats.trisOutput, outTriangles);
-    #if USE_EARLY_ATTRIBUTES
-      atomicAdd(stats.attrInput,  vertCount);
-      atomicAdd(stats.attrOutput, vertCount);
-    #endif
-  #endif
-  }
-
-#if !USE_EARLY_ATTRIBUTES
-  // FETCH REST OF VERTEX ATTRIBS
-  
-  #if USE_BATCHED_LATE_FETCH
-  {
-    // use two dedicated phases, which reduces the 
-    // overall amount of latency, if compiler 
-    // is smart enough to keep temp in registers
-    // and not use local memory.
-    //
-    // - load  run R
-    // - load  run R+1
-    // ...
-    // ! wait for loads
-    // - write run R
-    // - write run R+1
-    // ...
-    
-    TempAttributes tempattrs[NVMSH_VERTEX_RUNS];
-    
-    for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
-      uint vert = laneID + i * GROUP_SIZE;
-      bool used = isVertexUsed( vert );
-      if (used) {
-        uint vidx = readVertexIndex( vert );
-        fetchAttributes(tempattrs[i], vert, vidx);
-      }
-    }
-    for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
-      uint vert = laneID + i * GROUP_SIZE;
-      bool used = isVertexUsed( vert );
-      if (used) {
-        uint vidx = readVertexIndex( vert );
-        storeAttributes(tempattrs[i],vert, vidx);
-      }
-    }
-  }
-  #else
-  {
-    // due to dynamic branching the compiler may not unroll 
-    // all loads prior all writes, which adds latency 
-    // - load  run R
-    // ! wait for loads
-    // - write run R
-    // - load  run R+1
-    // ! wait for loads
-    // - write run R+1
-    // ...
-    //
-    // FIXME get compiler to do above with simple code
-  
-    for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
-      uint vert = laneID + i * GROUP_SIZE;
-      bool used = isVertexUsed( vert );
-      if (used) {
-        uint vidx = readVertexIndex( vert );
-        procAttributes(vert, vidx);
-      }
-    }
-  }
-  #endif
-  
-  #if USE_STATS
-  {
-    uint usedVertices = 0;
-    for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) {
-      uint vert = laneID + i * GROUP_SIZE;
-      bool used = isVertexUsed( vert );
-      uvec4 vote  = subgroupBallot(used);
-      uint  verts = subgroupBallotBitCount(vote);
-
-      usedVertices += verts;
-    }
-    if (laneID == 0){
-      atomicAdd(stats.attrInput, vertCount);
-      atomicAdd(stats.attrOutput, usedVertices);
-    }
-  }
-  #endif
-  
-#endif // !USE_EARLY_ATTRIBUTES
-#endif // !USE_MESH_SHADERCULL
 }
