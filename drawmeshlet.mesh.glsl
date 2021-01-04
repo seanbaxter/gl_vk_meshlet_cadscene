@@ -61,47 +61,9 @@ layout(local_size_x=GROUP_SIZE) in;
 layout(max_vertices=NVMESHLET_VERTEX_COUNT, max_primitives=NVMESHLET_PRIMITIVE_COUNT) out;
 layout(triangles) out;
 
-// do primitive culling in the shader, output reduced amount of primitives
-#ifndef USE_MESH_SHADERCULL
-#define USE_MESH_SHADERCULL     0
-#endif
-
-// no cull-before-fetch, always load all attributes
-#ifndef USE_EARLY_ATTRIBUTES
-#define USE_EARLY_ATTRIBUTES    0
-#endif
-
-// task shader is used in advance, doing early cluster culling
-#ifndef USE_TASK_STAGE
-#define USE_TASK_STAGE          0
-#endif
-
-// do frustum culling if USE_MESH_SHADERCULL is active
-// otherwise only backface & subpixel is done
-#ifndef USE_MESH_FRUSTUMCULL
-#define USE_MESH_FRUSTUMCULL    1
-#endif
-
-// get compiler to do batch loads
-#ifndef USE_BATCHED_LATE_FETCH
-#define USE_BATCHED_LATE_FETCH  1
-#endif
-
-////////////////////////////////////////////////////////////
-// optimize configurations
-
-#if !USE_MESH_SHADERCULL
-// always must use early attributes if culling is disabled
-#undef  USE_EARLY_ATTRIBUTES
-#define USE_EARLY_ATTRIBUTES    1
-#endif
-
-#if USE_TASK_STAGE
-// always disable frustumcull on mesh level
-// task stage does the heavy lifting
-#undef  USE_MESH_FRUSTUMCULL
+#define USE_MESH_SHADERCULL 1
+#define USE_TASK_STAGE 1
 #define USE_MESH_FRUSTUMCULL 0
-#endif
 
 /////////////////////////////////////
 // UNIFORMS
@@ -205,13 +167,11 @@ vec4 procVertex(const uint vert, uint vidx)
   OUT[vert].dummy = 0;
   OUT[vert].meshletID = meshletID;
   
-#if USE_CLIPPING
   // spir-v annoyance, doesn't unroll the loop and therefore cannot derive the number of clip distances used
   gl_MeshVerticesNV[vert].gl_ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
   gl_MeshVerticesNV[vert].gl_ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
 
-#endif
   
   return hPos;
 }
@@ -220,44 +180,6 @@ vec4 procVertex(const uint vert, uint vidx)
 // let's make use of a dedicated load phase.
 // (explained at the end of the file in the USE_BATCHED_LATE_FETCH section)
 
-#if USE_BATCHED_LATE_FETCH
-  struct TempAttributes {
-    vec3 normal;
-  #if EXTRA_ATTRIBUTES
-    vec4 xtra[EXTRA_ATTRIBUTES];
-  #endif
-  };
-
-  void fetchAttributes(inout TempAttributes temp, uint vert, uint vidx)
-  {
-    temp.normal = getNormal(vidx);
-  #if EXTRA_ATTRIBUTES
-    for (int i = 0; i < EXTRA_ATTRIBUTES; i++){
-      temp.xtra[i] = getExtra(vidx, i);
-    }
-  #endif
-  }
-
-  void storeAttributes(inout TempAttributes temp, const uint vert, uint vidx)
-  {
-    vec3 oNormal = temp.normal;
-    vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
-    OUT[vert].wNormal = wNormal;
-  #if EXTRA_ATTRIBUTES
-    for (int i = 0; i < EXTRA_ATTRIBUTES; i++){
-      OUT[vert].xtra[i] = temp.xtra[i];
-    }
-  #endif
-  }
-
-  void procAttributes(const uint vert, uint vidx)
-  {
-    TempAttributes  temp;
-    fetchAttributes(temp, vert, vidx);
-    storeAttributes(temp, vert, vidx);
-  }
-
-#else
   
   // if you never intend to use the above mechanism,
   // you can express the attribute processing more like a regular
@@ -275,7 +197,7 @@ vec4 procVertex(const uint vert, uint vidx)
     }
   #endif
   }
-#endif
+  
 
 //////////////////////////////////////////////////
 // MESH EXECUTION

@@ -49,7 +49,6 @@ public:
     uint32_t objectFrom;
     uint32_t objectNum;
     int32_t  indexThreshold;
-    uint32_t minTaskMeshlets;
   };
 
   struct DrawItem

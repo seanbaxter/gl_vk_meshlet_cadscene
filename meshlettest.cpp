@@ -29,19 +29,8 @@
 
 
 #include <imgui/imgui_helper.h>
-
-#if HAS_OPENGL
-#include <nvgl/appwindowprofiler_gl.hpp>
-#include <nvgl/base_gl.hpp>
-#include <nvgl/error_gl.hpp>
-#include <nvgl/extensions_gl.hpp>
-#include <nvgl/glsltypes_gl.hpp>
-#else
 #include <nvvk/appwindowprofiler_vk.hpp>
-#endif
-
 #include <nvvk/context_vk.hpp>
-
 #include <nvh/cameracontrol.hpp>
 #include <nvh/geometry.hpp>
 #include <nvh/fileoperations.hpp>
@@ -202,7 +191,6 @@ public:
     uint32_t objectNum         = ~0;
     uint32_t maxGroups         = -1;
     int32_t  indexThreshold    = 0;
-    uint32_t minTaskMeshlets   = 16;
     vec3f    clipPosition      = vec3f(0.5f);
   };
 
@@ -462,7 +450,6 @@ void Sample::initRenderer(int typesort)
     RenderList::Config config;
     config.objectFrom      = m_tweak.objectFrom;
     config.objectNum       = m_tweak.objectNum;
-    config.minTaskMeshlets = m_tweak.minTaskMeshlets;
     config.indexThreshold  = m_tweak.indexThreshold;
     config.strategy        = RenderList::STRATEGY_SINGLE;
 
@@ -635,15 +622,12 @@ void Sample::processUI(int width, int height, double time)
 
   ImGui::NewFrame();
   ImGui::SetNextWindowPos(ImVec2(5, 5));
-  ImGui::SetNextWindowSize(ImVec2(280, 0), ImGuiCond_FirstUseEver);
+  // ImGui::SetNextWindowSize(ImVec2(280, 0), ImGuiCond_FirstUseEver);
   if(ImGui::Begin("NVIDIA " PROJECT_NAME, nullptr))
   {
-    ImGui::PushItemWidth(120);
-#if HAS_OPENGL
-    ImGui::Text("gl and vk version");
-#else
+    
     ImGui::Text("vk only version");
-#endif
+
     ImGui::Separator();
     if(!m_messageString.empty())
     {
@@ -654,7 +638,6 @@ void Sample::processUI(int width, int height, double time)
 
     m_ui.enumCombobox(GUI_RENDERER, "renderer", &m_tweak.renderer);
     m_ui.enumCombobox(GUI_VIEWPOINT, "viewpoint", &m_tweak.viewPoint);
-    ImGuiH::InputIntClamped("min. task meshlets", &m_tweak.minTaskMeshlets, 0, 256, 1, 16, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::Checkbox("(mesh) colorize by meshlet", &m_tweak.colorize);
     ImGui::Checkbox("show meshlet bboxes", &m_tweak.showBboxes);
     ImGui::Checkbox("show meshlet normals", &m_tweak.showNormals);
@@ -782,7 +765,7 @@ void Sample::think(double time)
   if(sceneChanged || m_tweak.renderer != m_lastTweak.renderer || m_tweak.objectFrom != m_lastTweak.objectFrom
      || m_tweak.objectNum != m_lastTweak.objectNum 
      || m_tweak.useStats != m_lastTweak.useStats || m_tweak.maxGroups != m_lastTweak.maxGroups
-     || m_tweak.indexThreshold != m_lastTweak.indexThreshold || m_tweak.minTaskMeshlets != m_lastTweak.minTaskMeshlets)
+     || m_tweak.indexThreshold != m_lastTweak.indexThreshold)
   {
     m_resources->synchronize();
     initRenderer(m_tweak.renderer);
@@ -985,7 +968,6 @@ void Sample::setupConfigParameters()
   m_parameterList.add("objectnum", &m_tweak.objectNum);
   m_parameterList.add("maxgroups", &m_tweak.maxGroups);
   m_parameterList.add("indexthreshold", &m_tweak.indexThreshold);
-  m_parameterList.add("taskminmeshlets", &m_tweak.minTaskMeshlets);
 
   m_parameterList.add("shaderprepend", &m_shaderprepend);
 

@@ -183,16 +183,13 @@ bool earlyCull(uvec4 meshletDesc, in ObjectData object)
   vec3 bboxMax;
   decodeBbox(meshletDesc, object, bboxMin, bboxMax);
 
-#if USE_EARLY_BACKFACECULL && USE_BACKFACECULL
   vec3  oGroupNormal;
   float angle;
   decodeNormalAngle(meshletDesc, object, oGroupNormal, angle);
 
   vec3 wGroupNormal = normalize(mat3(object.worldMatrixIT) * oGroupNormal);
   bool backface = angle < 0;
-#else
-  bool backface = false;
-#endif
+
 
   uint frustumBits = ~0;
   uint clippingBits = ~0;
@@ -204,41 +201,23 @@ bool earlyCull(uvec4 meshletDesc, in ObjectData object)
     vec4 wPos = object.worldMatrix * getBoxCorner(bboxMin, bboxMax, n);
     vec4 hPos = scene.viewProjMatrix * wPos;
     frustumBits &= getCullBits(hPos);
-    
-  #if USE_EARLY_BACKFACECULL && USE_BACKFACECULL
     // approximate backface cone culling by testing against
     // bbox corners
     vec3 wDir = normalize(scene.viewPos.xyz - wPos.xyz);
     backface = backface && (dot(wGroupNormal, wDir) < angle);
-  #endif
-  #if USE_EARLY_CLIPPINGCULL && USE_CLIPPING
+ 
     uint planeBits = 0;
     for (int i = 0; i < NUM_CLIPPING_PLANES; i++){
       planeBits |= ((dot(scene.wClipPlanes[i], wPos) < 0) ? 1 : 0) << i;
     }
     clippingBits &= planeBits;
-  #endif
   
     clipMin = min(clipMin, hPos.xyz / hPos.w);
     clipMax = max(clipMax, hPos.xyz / hPos.w);
   }
   
-#if !USE_EARLY_FRUSTUMCULL
-  frustumBits = 0;
-#endif
-#if !USE_EARLY_CLIPPINGCULL || !USE_CLIPPING
-  clippingBits = 0;
-#endif
-#if USE_EARLY_SUBPIXELCULL && USE_SUBPIXELCULL
-  vec2 pixelMin = (clipMin.xy * 0.5 + 0.5) * scene.viewportTaskCull;
-  vec2 pixelMax = (clipMax.xy * 0.5 + 0.5) * scene.viewportTaskCull;
-  pixelBboxEpsilon(pixelMin, pixelMax);
-  bool subpixel = pixelBboxCull(pixelMin, pixelMax);
-#else
-  bool subpixel = false;
-#endif
   
-  return (frustumBits != 0 || backface || clippingBits != 0 || subpixel);
+  return frustumBits != 0 || backface || clippingBits != 0;
 }
 
 
