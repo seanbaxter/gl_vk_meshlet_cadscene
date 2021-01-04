@@ -185,17 +185,12 @@ class Sample
 public:
   struct Tweak
   {
-    bool     useMeshShaderCull = false;
-    bool     useBackFaceCull   = true;
-    bool     useClipping       = false;
     bool     animate           = false;
     bool     colorize          = false;
     bool     showBboxes        = false;
     bool     showNormals       = false;
-    bool     showCulled        = false;
     bool     useStats          = false;
     float    fov               = 45.0f;
-    float    pixelCull         = 0.5f;
     int      renderer          = 0;
     int      viewPoint         = 0;
     int      supersample       = 2;
@@ -359,12 +354,9 @@ std::string Sample::getShaderPrepend()
          + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
          + nvh::stringFormat("#define EXTRA_ATTRIBUTES %d\n", m_modelConfig.extraAttributes)
-         + nvh::stringFormat("#define USE_MESH_SHADERCULL %d\n", m_tweak.useMeshShaderCull ? 1 : 0)
-         + nvh::stringFormat("#define USE_CLIPPING %d\n", m_tweak.useClipping ? 1 : 0)
          + nvh::stringFormat("#define USE_STATS %d\n", m_tweak.useStats ? 1 : 0)
          + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0)
-         + nvh::stringFormat("#define SHOW_NORMAL %d\n", m_tweak.showNormals ? 1 : 0)
-         + nvh::stringFormat("#define SHOW_CULLED %d\n", m_tweak.showCulled ? 1 : 0);
+         + nvh::stringFormat("#define SHOW_NORMAL %d\n", m_tweak.showNormals ? 1 : 0);
 }
 
 bool Sample::initProgram()
@@ -445,8 +437,6 @@ void Sample::initRenderer(int typesort)
       m_resources->deinit();
     }
     m_resources                    = Renderer::getRegistry()[type]->resources();
-    m_resources->m_cullBackFace    = m_tweak.useBackFaceCull;
-    m_resources->m_clipping        = m_tweak.useClipping;
     m_resources->m_extraAttributes = m_modelConfig.extraAttributes;
 #if HAS_OPENGL
     bool valid = m_resources->init(&m_contextWindow, &m_profiler);
@@ -666,23 +656,14 @@ void Sample::processUI(int width, int height, double time)
     m_ui.enumCombobox(GUI_VIEWPOINT, "viewpoint", &m_tweak.viewPoint);
     ImGuiH::InputIntClamped("min. task meshlets", &m_tweak.minTaskMeshlets, 0, 256, 1, 16, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::Checkbox("(mesh) colorize by meshlet", &m_tweak.colorize);
-    ImGui::Checkbox("use backface culling ", &m_tweak.useBackFaceCull);
     ImGui::Checkbox("show meshlet bboxes", &m_tweak.showBboxes);
     ImGui::Checkbox("show meshlet normals", &m_tweak.showNormals);
-    ImGui::Checkbox("(show) culled", &m_tweak.showCulled);
     //ImGui::Checkbox("animate", &m_tweak.animate);
     ImGui::SliderFloat("fov", &m_tweak.fov, 1, 120, "%.0f");
     ImGui::Separator();
-    ImGui::Checkbox("(mesh) use per-primitive culling ", &m_tweak.useMeshShaderCull);
-    ImGui::Checkbox("use clipping planes", &m_tweak.useClipping);
-    ImGui::SliderFloat3("clip position", m_tweak.clipPosition.vec_array, 0.01f, 1.01, "%.2f");
-    ImGui::SliderFloat("(task) pixel cull", &m_tweak.pixelCull, 0.0f, 1.0f, "%.2f");
-#if 0
-      ImGui::Separator();
-      ImGuiH::InputIntClamped("objectFrom", &m_tweak.objectFrom, 0, (int)m_scene.m_objects.size()-1);
-      ImGuiH::InputIntClamped("objectNum", &m_tweak.objectNum, 0, (int)m_scene.m_objects.size());
-      ImGui::InputInt("indexThreshold", &m_tweak.indexThreshold);
-#endif
+    ImGui::SliderFloat("clip position X", &m_tweak.clipPosition.vec_array[0], 0.01f, 1.01);
+    ImGui::SliderFloat("clip position Y", &m_tweak.clipPosition.vec_array[1], 0.01f, 1.01);
+    ImGui::SliderFloat("clip position Z", &m_tweak.clipPosition.vec_array[2], 0.01f, 1.01);
     ImGui::Separator();
     ImGuiH::InputIntClamped("meshlet vertices", &m_modelConfig.meshVertexCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGuiH::InputIntClamped("meshlet primitives", &m_modelConfig.meshPrimitiveCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
@@ -764,17 +745,13 @@ void Sample::think(double time)
                            nvmath::vec2f(m_windowState.m_mouseCurrent[0], m_windowState.m_mouseCurrent[1]),
                            m_windowState.m_mouseButtonFlags, m_windowState.m_mouseWheel);
 
-  if(m_windowState.onPress(KEY_R) || m_tweak.useBackFaceCull != m_lastTweak.useBackFaceCull
-     || m_tweak.useMeshShaderCull != m_lastTweak.useMeshShaderCull || m_tweak.useClipping != m_lastTweak.useClipping
+  if(m_windowState.onPress(KEY_R)
      || m_tweak.useStats != m_lastTweak.useStats || m_modelConfig.extraAttributes != m_lastModelConfig.extraAttributes
      || m_modelConfig.meshPrimitiveCount != m_lastModelConfig.meshPrimitiveCount
      || m_modelConfig.meshVertexCount != m_lastModelConfig.meshVertexCount || m_shaderprepend != m_lastShaderPrepend
-     || m_tweak.showBboxes != m_lastTweak.showBboxes || m_tweak.showNormals != m_lastTweak.showNormals
-     || m_tweak.showCulled != m_lastTweak.showCulled)
+     || m_tweak.showBboxes != m_lastTweak.showBboxes || m_tweak.showNormals != m_lastTweak.showNormals)
   {
     m_resources->synchronize();
-    m_resources->m_cullBackFace = m_tweak.useBackFaceCull;
-    m_resources->m_clipping     = m_tweak.useClipping;
     m_resources->reloadPrograms(getShaderPrepend());
   }
   else if(m_windowState.onPress(KEY_C))
@@ -803,7 +780,7 @@ void Sample::think(double time)
   }
 
   if(sceneChanged || m_tweak.renderer != m_lastTweak.renderer || m_tweak.objectFrom != m_lastTweak.objectFrom
-     || m_tweak.objectNum != m_lastTweak.objectNum || m_tweak.useClipping != m_lastTweak.useClipping
+     || m_tweak.objectNum != m_lastTweak.objectNum 
      || m_tweak.useStats != m_lastTweak.useStats || m_tweak.maxGroups != m_lastTweak.maxGroups
      || m_tweak.indexThreshold != m_lastTweak.indexThreshold || m_tweak.minTaskMeshlets != m_lastTweak.minTaskMeshlets)
   {
@@ -827,7 +804,7 @@ void Sample::think(double time)
 
     sceneUbo.viewport         = ivec2(width * m_tweak.supersample, height * m_tweak.supersample);
     sceneUbo.viewportf        = vec2(width * m_tweak.supersample, height * m_tweak.supersample);
-    sceneUbo.viewportTaskCull = sceneUbo.viewportf * m_tweak.pixelCull;
+    sceneUbo.viewportTaskCull = sceneUbo.viewportf;
     sceneUbo.colorize         = m_tweak.colorize ? 1 : 0;
 
     if(m_tweak.animate)
@@ -1009,21 +986,16 @@ void Sample::setupConfigParameters()
   m_parameterList.add("maxgroups", &m_tweak.maxGroups);
   m_parameterList.add("indexthreshold", &m_tweak.indexThreshold);
   m_parameterList.add("taskminmeshlets", &m_tweak.minTaskMeshlets);
-  m_parameterList.add("taskpixelcull", &m_tweak.pixelCull);
 
   m_parameterList.add("shaderprepend", &m_shaderprepend);
 
   m_parameterList.add("meshlet", &m_modelConfig.meshVertexCount, nullptr, 2);
-  m_parameterList.add("meshshadercull", &m_tweak.useMeshShaderCull);
-  m_parameterList.add("backfacecull", &m_tweak.useBackFaceCull);
 
   m_parameterList.add("showbbox", &m_tweak.showBboxes);
   m_parameterList.add("shownormals", &m_tweak.showNormals);
-  m_parameterList.add("showculled", &m_tweak.showCulled);
 
   m_parameterList.add("stats", &m_tweak.useStats);
 
-  m_parameterList.add("clipping", &m_tweak.useClipping);
   m_parameterList.add("clippos", m_tweak.clipPosition.vec_array, nullptr, 3);
 
   m_parameterList.add("message", &m_messageString);

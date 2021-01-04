@@ -52,7 +52,6 @@ static void AddItem(std::vector<RenderList::DrawItem>& drawItems, const RenderLi
   {
     passes = !passes;
   }
-  di.task = config.minTaskMeshlets > 0 && di.meshlet.count >= config.minTaskMeshlets;
   if(di.range.count && passes)
   {
     drawItems.push_back(di);
@@ -109,7 +108,6 @@ static void FillIndividual(std::vector<RenderList::DrawItem>& drawItems,
 static inline bool DrawItem_compare_groups(const RenderList::DrawItem& a, const RenderList::DrawItem& b)
 {
   int diff = 0;
-  diff     = diff != 0 ? diff : ((a.task ? 1 : 0) - (b.task ? 1 : 0));
   diff     = diff != 0 ? diff : (a.geometryIndex - b.geometryIndex);
   diff     = diff != 0 ? diff : (a.matrixIndex - b.matrixIndex);
 
@@ -150,7 +148,7 @@ void RenderList::setup(const CadScene* NV_RESTRICT scene, const Config& config)
     const DrawItem& di = m_drawItems[i];
     sumTriangles += di.range.count / 3;
     sumTrianglesShort += (di.range.count / 3) * (di.shorts ? 1 : 0);
-    m_stats.tasksInput += di.task ? (di.meshlet.count + 31) / 32 : 0;
+    m_stats.tasksInput += (di.meshlet.count + 31) / 32;
     m_stats.meshletsInput += di.meshlet.count;
     m_stats.trisInput += di.range.count / 3;
   }

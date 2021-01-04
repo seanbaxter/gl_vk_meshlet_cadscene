@@ -98,8 +98,6 @@ private:
     int  lastMatrix   = -1;
     int  lastChunk    = -1;
     bool lastShorts   = false;
-    bool lastTask     = true;
-    ;
 
     uint32_t psoStats = 0;
 
@@ -108,10 +106,8 @@ private:
     {
       const RenderList::DrawItem& di = drawItems[i];
 
-      bool useTask = di.task;
-      if(first || useTask != lastTask)
       {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, useTask ? setup.pipeline : setup.pipelineNoTask);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, setup.pipeline);
 
         if(first)
         {
@@ -120,7 +116,6 @@ private:
         }
 
         first    = false;
-        lastTask = useTask;
 
         psoStats++;
       }
@@ -161,7 +156,6 @@ private:
         lastMatrix = di.matrixIndex;
       }
 
-      if(useTask)
       {
         nvmath::uvec4 assigns;
         assigns.x = di.meshlet.offset;
@@ -172,9 +166,8 @@ private:
                            sizeof(uint32_t) * 4, sizeof(assigns), &assigns);
       }
 
-      uint32_t count  = useTask ? NVMeshlet::computeTasksCount(di.meshlet.count) : di.meshlet.count;
-      uint32_t offset = useTask ? 0 : di.meshlet.offset;
-      vkCmdDrawMeshTasksNV(cmd, count, offset);
+      uint32_t count  = NVMeshlet::computeTasksCount(di.meshlet.count);
+      vkCmdDrawMeshTasksNV(cmd, count, 0);
     }
 
     vkEndCommandBuffer(cmd);

@@ -113,12 +113,14 @@ public:
 
   // Circle-generated modules.
   VkShaderModule raster_module;
+  VkShaderModule bbox_module;
+  VkShaderModule mesh_module;
+
 
   enum DrawMode
   {
     MODE_REGULAR,
     MODE_BBOX,
-    MODE_MESH,
     MODE_TASK_MESH,
     NUM_MODES,
   };

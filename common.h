@@ -74,20 +74,16 @@
 #define EXTRA_ATTRIBUTES    4
 #endif
 
-#ifndef USE_CLIPPING
-#define USE_CLIPPING        0
-#endif
-
 #define NUM_CLIPPING_PLANES 3
 
 #define NORMAL_STRIDE (1 + EXTRA_ATTRIBUTES)
+
+#define USE_TASK_STAGE 1
 
 #ifdef __cplusplus
 
 namespace nvmath { }
 
-namespace meshlettest
-{
   using namespace nvmath;
 #endif
 
@@ -135,10 +131,8 @@ struct CullStats {
 };
 
 #ifdef __cplusplus
-}
-#else
-
-// GLSL functions
+inline 
+#endif
 
 uint murmurHash(uint idx)
 {
@@ -156,6 +150,5 @@ uint murmurHash(uint idx)
   
   return h;
 }
-#endif
 
 #endif

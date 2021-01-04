@@ -54,7 +54,6 @@ public:
 
   struct DrawItem
   {
-    bool                   task;
     bool                   shorts;
     int                    geometryIndex;
     int                    matrixIndex;

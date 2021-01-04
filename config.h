@@ -46,7 +46,7 @@
 // must not change
 #define WARP_SIZE  32
 #define WARP_STEPS 5
-
+#define GROUP_SIZE WARP_SIZE
 ///////////////////////////////////////////////////
 
 #endif

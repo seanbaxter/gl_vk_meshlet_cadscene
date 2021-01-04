@@ -483,12 +483,8 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
 
   if(m_nativeMeshSupport)
   {
-    m_shaders.object_mesh = m_shaderManager.createShaderModule(VK_SHADER_STAGE_MESH_BIT_NV, "drawmeshlet.mesh.glsl",
-                                                               "#define USE_TASK_STAGE 0\n");
-    m_shaders.object_task_mesh = m_shaderManager.createShaderModule(VK_SHADER_STAGE_MESH_BIT_NV, "drawmeshlet.mesh.glsl",
-                                                                    "#define USE_TASK_STAGE 1\n");
-    m_shaders.object_task = m_shaderManager.createShaderModule(VK_SHADER_STAGE_TASK_BIT_NV, "drawmeshlet.task.glsl",
-                                                               "#define USE_TASK_STAGE 1\n");
+    m_shaders.object_task_mesh = m_shaderManager.createShaderModule(VK_SHADER_STAGE_MESH_BIT_NV, "drawmeshlet.mesh.glsl");
+    m_shaders.object_task = m_shaderManager.createShaderModule(VK_SHADER_STAGE_TASK_BIT_NV, "drawmeshlet.task.glsl");
   }
   ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -499,6 +495,18 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
     m_device,
     (const uint32_t*)raster_shaders.spirv_data,
     raster_shaders.spirv_size
+  );
+
+  bbox_module = nvvk::createShaderModule(
+    m_device,
+    (const uint32_t*)bbox_shaders.spirv_data,
+    bbox_shaders.spirv_size
+  );
+
+  mesh_module = nvvk::createShaderModule(
+    m_device,
+    (const uint32_t*)bbox_shaders.spirv_data,
+    bbox_shaders.spirv_size
   );
 
 
@@ -1069,10 +1077,6 @@ void ResourcesVK::initPipes()
         viStateInfo.pVertexAttributeDescriptions    = nullptr;
         viStateInfo.pVertexBindingDescriptions      = nullptr;
         break;
-      case MODE_MESH:
-        iaStateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        pipelineInfo.layout  = m_setupMeshTask.container.getPipeLayout();
-        break;
       case MODE_TASK_MESH:
         iaStateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         pipelineInfo.layout  = m_setupMeshTask.container.getPipeLayout();
@@ -1117,15 +1121,6 @@ void ResourcesVK::initPipes()
         stage2.module           = m_shaderManager.get(m_shaders.bbox_fragment);
         break;
 
-      case MODE_MESH:
-        pipelineInfo.stageCount = 2;
-        stage0.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
-        stage0.module           = m_shaderManager.get(m_shaders.object_mesh);
-        stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage1.module           = raster_module;
-        stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
-        break;
-        
       case MODE_TASK_MESH:
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_TASK_BIT_NV;
@@ -1148,9 +1143,6 @@ void ResourcesVK::initPipes()
         break;
       case MODE_BBOX:
         m_setupBbox.pipeline = pipeline;
-        break;
-      case MODE_MESH:
-        m_setupMeshTask.pipelineNoTask = pipeline;
         break;
       case MODE_TASK_MESH:
         m_setupMeshTask.pipeline = pipeline;
