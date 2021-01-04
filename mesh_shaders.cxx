@@ -1,6 +1,5 @@
 #include "shaders_common.hxx"
 
-#if 0
 
 [[spirv::perTask]] struct {
   uint baseID;
@@ -17,22 +16,13 @@ void mesh_shader() {
 
   // decode meshletDesc
   uvec4 desc = meshletDescs[meshletID + geometryOffsets.x];
-  uint vertMax;
-  uint primMax;
+  meshlet_t meshlet = decodeMeshlet(desc);
 
-  uint vidxStart;
-  uint vidxBits;
-  uint vidxDiv;
-  uint primStart;
-  uint primDiv;
-  decodeMeshlet(desc, vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv);
+  meshlet.vidxStart += geometryOffsets.y / 4;
+  meshlet.primStart += geometryOffsets.y / 4;
 
-  vidxStart += geometryOffsets.y / 4;
-  primStart += geometryOffsets.y / 4;
-
-
-  uint primCount = primMax + 1;
-  uint vertCount = vertMax + 1;
+  uint primCount = meshlet.primMax + 1;
+  uint vertCount = meshlet.vertMax + 1;
   
 
   // LOAD PHASE
@@ -140,7 +130,7 @@ void mesh_shader() {
   if (laneID == 0)
     gl_PrimitiveCountNV = outTriangles;
 }
-#endif
+
 const mesh_shaders_t mesh_shaders {
   __spirv_data,
   __spirv_size,

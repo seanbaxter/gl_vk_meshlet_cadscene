@@ -23,23 +23,26 @@ uvec4 meshletDescs[];
 [[spirv::push]]
 uvec4 geometryOffsets;
 
+struct meshlet_t {
+  uint vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv;
+};
 
-inline void decodeMeshlet(uvec4 meshletDesc, uint& vertMax, uint& primMax,
-  uint& primStart, uint& primDiv, uint& vidxStart, uint& vidxBits, 
-  uint& vidxDiv) {
-  
+inline meshlet_t decodeMeshlet(uvec4 meshletDesc) {
+  meshlet_t meshlet { };
+
   uint vMax  = (meshletDesc.x >> 24);
   uint packOffset = meshletDesc.w;
   
-  vertMax    = vMax;
-  primMax    = (meshletDesc.y >> 24);
+  meshlet.vertMax    = vMax;
+  meshlet.primMax    = (meshletDesc.y >> 24);
   
-  vidxStart  =  packOffset;
-  vidxDiv    = (meshletDesc.z >> 24);
-  vidxBits   = vidxDiv == 2 ? 16 : 0;
+  meshlet.vidxStart  =  packOffset;
+  meshlet.vidxDiv    = (meshletDesc.z >> 24);
+  meshlet.vidxBits   = meshlet.vidxDiv == 2 ? 16 : 0;
   
-  primDiv    = 4;
-  primStart  =  (packOffset + ((vMax + 1 + vidxDiv - 1) / vidxDiv) + 1) & ~1;
+  meshlet.primDiv    = 4;
+  meshlet.primStart  = (packOffset + ((vMax + 1 + meshlet.vidxDiv - 1) / 
+    meshlet.vidxDiv) + 1) & ~1;
 }
 
 
