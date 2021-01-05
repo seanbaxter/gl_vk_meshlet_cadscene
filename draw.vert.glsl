@@ -61,9 +61,6 @@
 
 in layout(location=VERTEX_POS)      vec3 oPos;
 in layout(location=VERTEX_NORMAL)   vec3 oNormal;
-#if EXTRA_ATTRIBUTES
-in layout(location=VERTEX_XTRA)     vec4 xtra[EXTRA_ATTRIBUTES];
-#endif
 
 //////////////////////////////////////////////////
 // OUTPUT
@@ -73,9 +70,6 @@ layout(location=0) out Interpolants {
   float dummy;
   vec3  wNormal;
   flat uint meshletID;
-#if EXTRA_ATTRIBUTES
-  vec4 xtra[EXTRA_ATTRIBUTES];
-#endif
 } OUT;
 
 #if IS_VULKAN

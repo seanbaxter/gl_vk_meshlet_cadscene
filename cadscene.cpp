@@ -195,7 +195,6 @@ bool CadScene::loadCSF(const char* filename, const LoadConfig& cfg, int clones, 
 
     memset(geom.aboData, 0, geom.aboSize);
 
-    const bool colorizeExtra = true;
 
     if(m_cfg.fp16)
     {
@@ -217,12 +216,6 @@ bool CadScene::loadCSF(const char* filename, const LoadConfig& cfg, int clones, 
 
         floatToHalfVector(vertex->position, position);
         floatToHalfVector(attribute->normal, normal);
-
-        for(uint32_t i = 0; m_cfg.colorizeExtra && i < m_cfg.extraAttributes; i++)
-        {
-          floatToHalfVector(attribute[1 + i].normal, nvmath::vec4f(0, 1, 0, 0) * 0.1f);
-        }
-
         m_bboxes[g].merge(position);
       }
     }
@@ -246,12 +239,6 @@ bool CadScene::loadCSF(const char* filename, const LoadConfig& cfg, int clones, 
 
         vertex->position  = position;
         attribute->normal = normal;
-
-        for(uint32_t i = 0; m_cfg.colorizeExtra && i < m_cfg.extraAttributes; i++)
-        {
-          attribute[1 + i].normal = nvmath::vec4f(0, 1, 0, 0) * 0.1f;
-        }
-
         m_bboxes[g].merge(position);
       }
     }

@@ -1,17 +1,66 @@
 #include "shaders_common.hxx"
 
+[[using spirv: buffer, binding(GEOMETRY_SSBO_PRIM), set(DSET_GEOMETRY)]]
+uint primIndices1[];
 
-[[spirv::perTask]] struct {
+[[using spirv: buffer, binding(GEOMETRY_SSBO_PRIM), set(DSET_GEOMETRY)]]
+uvec2 primIndices2[];
+
+
+[[using spirv: uniform, binding(GEOMETRY_TEX_IBO), set(DSET_GEOMETRY)]]
+usamplerBuffer texIbo;
+
+[[using spirv: uniform, binding(GEOMETRY_TEX_VBO), set(DSET_GEOMETRY)]]
+samplerBuffer  texVbo;
+
+[[using spirv: uniform, binding(GEOMETRY_TEX_ABO), set(DSET_GEOMETRY)]]
+samplerBuffer  texAbo;
+
+struct Task {
   uint baseID;
   uint8_t subIDs[GROUP_SIZE];
-} task;
+};
 
+[[spirv::perTaskOut]] Task taskOut;
+[[spirv::perTaskIn]] Task taskIn;
+
+template<int vert_count>
+vec4 procVertex(uint vert, uint vidx, uint meshletID) {
+  // Stream the vertex position.
+  vec3 oPos = texelFetch(texVbo, vidx).xyz;
+  vec3 wPos = (object.worldMatrix  * vec4(oPos,1)).xyz;
+  vec4 hPos = (scene.viewProjMatrix * vec4(wPos,1));
+  
+  glmesh_Output[vert].Position = hPos;
+  shader_out<0, vec3[vert_count]>[vert] = wPos;
+  shader_out<1, float[vert_count]>[vert] = 0;   // dummy
+
+  // Stream the vertex normal.
+  vec3 oNormal = texelFetch(texAbo, vidx).xyz;
+  vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
+  shader_out<2, vec3[vert_count]>[vert] = wNormal;
+
+  // Stream the meshletID
+  shader_out<3, int[vert_count]>[vert] = meshletID;
+  
+  // Perform clipping against user clip planes.
+  // glmesh_Output[vert].ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
+  // glmesh_Output[vert].ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
+  // glmesh_Output[vert].ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
+  
+  return hPos;
+}
+
+template<int vert_count, int prim_count>
 [[using spirv:
-  mesh(triangles, NVMESHLET_VERTEX_COUNT, NVMESHLET_PRIMITIVE_COUNT), 
+  mesh(triangles, vert_count, prim_count), 
   local_size(GROUP_SIZE)
 ]]
 void mesh_shader() {
-  uint meshletID = task.baseID + task.subIDs[glcomp_WorkGroupID.x];
+  constexpr int vert_runs = div_up(vert_count, GROUP_SIZE);
+  constexpr int prim_runs = div_up(prim_count, GROUP_SIZE);
+
+  uint meshletID = taskIn.baseID + taskIn.subIDs[glcomp_WorkGroupID.x];
   uint laneID = glcomp_LocalInvocationID.x;
 
   // decode meshletDesc
@@ -24,115 +73,49 @@ void mesh_shader() {
   uint primCount = meshlet.primMax + 1;
   uint vertCount = meshlet.vertMax + 1;
   
-
-  // LOAD PHASE
   // VERTEX PROCESSING
-  
-  for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) 
-  {
+  for (int i = 0; i < vert_runs; ++i) {
     uint vert = laneID + i * GROUP_SIZE;
-    uint vertLoad = min(vert, vertMax);
-    clearVertexUsed(vert);
+    uint vertLoad = min(vert, meshlet.vertMax);
     {
-      uint idx   = (vertLoad) / vidxDiv;
-      uint shift = (vertLoad) & (vidxDiv-1);
+      uint idx   = vertLoad / meshlet.vidxDiv;
+      uint shift = vertLoad & (meshlet.vidxDiv - 1);
       
-      uint vidx = primIndices1[idx + vidxStart];
-      vidx <<= vidxBits * (1-shift); 
-      vidx >>= vidxBits;
+      uint vidx = primIndices1[idx + meshlet.vidxStart];
+      vidx <<= meshlet.vidxBits * (1 - shift); 
+      vidx >>= meshlet.vidxBits;
       
       vidx += geometryOffsets.w;
     
-      vec4 hPos = procVertex(vert, vidx);
-      setVertexClip(vert, getCullBits(hPos));
-      
-    #if USE_EARLY_ATTRIBUTES
-      procAttributes(vert, vidx);
-    #else
-      writeVertexIndex(vert, vidx);
-    #endif
+      vec4 hPos = procVertex<vert_count>(vert, vidx, meshletID);
     }
   }
   
   // PRIMITIVE TOPOLOGY  
   {
-    uint readBegin = primStart / 2;
+    uint readBegin = meshlet.primStart / 2;
     uint readIndex = primCount * 3 - 1;
     uint readMax   = readIndex / 8;
 
-    for (uint i = 0; i < uint(NVMSH_PRIMITIVE_INDICES_RUNS); i++)
+    for (int i = 0; i < prim_runs; ++i)
     {
       uint read = laneID + i * GROUP_SIZE;
       uint readUsed = min(read, readMax);
       uvec2 topology = primIndices2[readBegin + readUsed];
-      nvmsh_writePackedPrimitiveIndices4x8NV(readUsed * 8 + 0, topology.x);
-      nvmsh_writePackedPrimitiveIndices4x8NV(readUsed * 8 + 4, topology.y);
+      glmesh_writePackedPrimitiveIndices4x8(readUsed * 8 + 0, topology.x);
+      glmesh_writePackedPrimitiveIndices4x8(readUsed * 8 + 4, topology.y);
     }
   }
 
   uint outTriangles = 0;
-  
-  NVMSH_BARRIER();
-  
-  // PRIMITIVE PHASE
- 
-  const uint primRuns = (primCount + GROUP_SIZE - 1) / GROUP_SIZE;
-  for (uint i = 0; i < primRuns; i++) {
-    uint triCount = 0;
-    uint topology = 0;
-    
-    uint prim = laneID + i * GROUP_SIZE;
-    
-    if (prim <= primMax) {
-      uint idx = prim * 3;
-      uint ia = gl_PrimitiveIndicesNV[idx + 0];
-      uint ib = gl_PrimitiveIndicesNV[idx + 1];
-      uint ic = gl_PrimitiveIndicesNV[idx + 2];
-      topology = ia | (ib << NVMSH_INDEX_BITS) | (ic << (NVMSH_INDEX_BITS*2));
-      
-      // build triangle
-      vec2 a = getVertexScreen(ia);
-      vec2 b = getVertexScreen(ib);
-      vec2 c = getVertexScreen(ic);
-
-      uint abits = getVertexClip(ia);
-      uint bbits = getVertexClip(ib);
-      uint cbits = getVertexClip(ic);
-      
-      triCount = testTriangle(a.xy, b.xy, c.xy, 1.0, abits, bbits, cbits);
-
-      
-      if (triCount != 0) {
-        setVertexUsed(ia);
-        setVertexUsed(ib);
-        setVertexUsed(ic);
-      }
-    }
-    
-    uvec4 vote = subgroupBallot(triCount == 1);
-    uint  tris = subgroupBallotBitCount(vote);
-    uint  idxOffset = outTriangles + subgroupBallotExclusiveBitCount(vote);
-
-  
-    if (triCount != 0) {
-      uint idx = idxOffset * 3;
-      gl_PrimitiveIndicesNV[idx + 0] = NVMSH_PACKED4X8_GET(topology, 0);
-      gl_PrimitiveIndicesNV[idx + 1] = NVMSH_PACKED4X8_GET(topology, 1);
-      gl_PrimitiveIndicesNV[idx + 2] = NVMSH_PACKED4X8_GET(topology, 2);
-    }
-    
-    outTriangles += tris;
-  }
-
-  
-  NVMSH_BARRIER();
-  
   if (laneID == 0)
-    gl_PrimitiveCountNV = outTriangles;
+    glmesh_PrimitiveCount = outTriangles;
 }
 
 const mesh_shaders_t mesh_shaders {
   __spirv_data,
   __spirv_size,
 
+  nullptr,
+  @spirv(mesh_shader<64, 126>)
 };

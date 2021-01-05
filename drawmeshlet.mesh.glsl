@@ -69,35 +69,31 @@ layout(triangles) out;
 
 // UNIFORMS
 
-    layout(push_constant) uniform pushConstant{
-      uvec4     geometryOffsets;
-      // x: mesh, y: prim, z: index, w: vertex
-    };
+layout(push_constant) uniform pushConstant{
+  uvec4     geometryOffsets;
+  // x: mesh, y: prim, z: index, w: vertex
+};
 
-  layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
-    SceneData scene;
-  };
-  layout(std430, binding = SCENE_SSBO_STATS, set = DSET_SCENE) buffer statsBuffer {
-    CullStats stats;
-  };
+layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
+  SceneData scene;
+};
+layout(std140, binding= 0, set = DSET_OBJECT) uniform objectBuffer {
+  ObjectData object;
+};
 
-  layout(std140, binding= 0, set = DSET_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
-  
-  layout(std430, binding = GEOMETRY_SSBO_MESHLETDESC, set = DSET_GEOMETRY) buffer meshletDescBuffer {
-    uvec4 meshletDescs[];
-  };
-  layout(std430, binding = GEOMETRY_SSBO_PRIM, set = DSET_GEOMETRY) buffer primIndexBuffer1 {
-    uint  primIndices1[];
-  };
-  layout(std430, binding = GEOMETRY_SSBO_PRIM, set = DSET_GEOMETRY) buffer primIndexBuffer2 {
-    uvec2 primIndices2[];
-  };
+layout(std430, binding = GEOMETRY_SSBO_MESHLETDESC, set = DSET_GEOMETRY) buffer meshletDescBuffer {
+  uvec4 meshletDescs[];
+};
+layout(std430, binding = GEOMETRY_SSBO_PRIM, set = DSET_GEOMETRY) buffer primIndexBuffer1 {
+  uint  primIndices1[];
+};
+layout(std430, binding = GEOMETRY_SSBO_PRIM, set = DSET_GEOMETRY) buffer primIndexBuffer2 {
+  uvec2 primIndices2[];
+};
 
-  layout(binding=GEOMETRY_TEX_IBO,  set=DSET_GEOMETRY)  uniform usamplerBuffer texIbo;
-  layout(binding=GEOMETRY_TEX_VBO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texVbo;
-  layout(binding=GEOMETRY_TEX_ABO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texAbo;
+layout(binding=GEOMETRY_TEX_IBO,  set=DSET_GEOMETRY)  uniform usamplerBuffer texIbo;
+layout(binding=GEOMETRY_TEX_VBO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texVbo;
+layout(binding=GEOMETRY_TEX_ABO,  set=DSET_GEOMETRY)  uniform samplerBuffer  texAbo;
 
 /////////////////////////////////////////////////
 
@@ -128,12 +124,9 @@ vec3 getPosition( uint vidx ){
 }
 
 vec3 getNormal( uint vidx ){
-  return texelFetch(texAbo, int(vidx * NORMAL_STRIDE)).xyz;
+  return texelFetch(texAbo, int(vidx * 1)).xyz;
 }
 
-vec4 getExtra( uint vidx, uint xtra ){
-  return texelFetch(texAbo, int(vidx * NORMAL_STRIDE + 1 + xtra));
-}
 
 ////////////////////////////////////////////////////////////
 // OUTPUT
@@ -143,9 +136,6 @@ layout(location=0) out Interpolants {
   float dummy;
   vec3  wNormal;
   flat uint meshletID;
-#if EXTRA_ATTRIBUTES
-  vec4 xtra[EXTRA_ATTRIBUTES];
-#endif
 } OUT[];
 
 //////////////////////////////////////////////////
@@ -163,49 +153,22 @@ vec4 procVertex(const uint vert, uint vidx)
   OUT[vert].dummy = 0;
   OUT[vert].meshletID = meshletID;
   
+  vec3 oNormal = getNormal(vidx);
+  vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
+  OUT[vert].wNormal = wNormal;
+
   // spir-v annoyance, doesn't unroll the loop and therefore cannot derive the number of clip distances used
-  gl_MeshVerticesNV[vert].gl_ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
-  gl_MeshVerticesNV[vert].gl_ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
-  gl_MeshVerticesNV[vert].gl_ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
+  // gl_MeshVerticesNV[vert].gl_ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
+  // gl_MeshVerticesNV[vert].gl_ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
+  // gl_MeshVerticesNV[vert].gl_ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
   
   return hPos;
 }
-
-// To benefit from batched loading, and reduce latency 
-// let's make use of a dedicated load phase.
-// (explained at the end of the file in the USE_BATCHED_LATE_FETCH section)
 
   // if you never intend to use the above mechanism,
   // you can express the attribute processing more like a regular
   // vertex shader
 
-  void procAttributes(const uint vert, uint vidx)
-  {
-    vec3 oNormal = getNormal(vidx);
-    vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
-    OUT[vert].wNormal = wNormal;
-  #if EXTRA_ATTRIBUTES
-    for (int i = 0; i < EXTRA_ATTRIBUTES; i++) {
-      vec4 xtra = getExtra(vidx, i);
-      OUT[vert].xtra[i] = xtra;
-    }
-  #endif
-  }
-
-//////////////////////////////////////////////////
-// MESH EXECUTION
-  uint getVertexClip(uint vert) {
-    return getCullBits(gl_MeshVerticesNV[vert].gl_Position);
-  }
-
-  vec2 getVertexScreen(uint vert) {
-    return getScreenPos(gl_MeshVerticesNV[vert].gl_Position);
-  }
-
-  #define NVMSH_BARRIER() \
-    memoryBarrierShared(); \
-    barrier();
-    
   #define NVMSH_INDEX_BITS      8
   #define NVMSH_PACKED4X8_GET(packed, idx)   (((packed) >> (NVMSH_INDEX_BITS * (idx))) & 255)
   
@@ -217,16 +180,8 @@ vec4 procVertex(const uint vert, uint vidx)
   #define NVMSH_VERTEX_RUNS     ((NVMESHLET_VERTEX_COUNT + GROUP_SIZE - 1) / GROUP_SIZE)
   #define NVMSH_PRIMITIVE_RUNS  ((NVMESHLET_PRIMITIVE_COUNT + GROUP_SIZE - 1) / GROUP_SIZE)
   
-#if 1
   #define nvmsh_writePackedPrimitiveIndices4x8NV writePackedPrimitiveIndices4x8NV
-#else
-  #define nvmsh_writePackedPrimitiveIndices4x8NV(idx, topology) {\
-        gl_PrimitiveIndicesNV[ (idx) + 0 ] = (NVMSH_PACKED4X8_GET((topology), 0)); \
-        gl_PrimitiveIndicesNV[ (idx) + 1 ] = (NVMSH_PACKED4X8_GET((topology), 1)); \
-        gl_PrimitiveIndicesNV[ (idx) + 2 ] = (NVMSH_PACKED4X8_GET((topology), 2)); \
-        gl_PrimitiveIndicesNV[ (idx) + 3 ] = (NVMSH_PACKED4X8_GET((topology), 3));} 
-#endif
-  
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void main()
@@ -245,8 +200,11 @@ void main()
     vidxStart += geometryOffsets.y / 4;
     primStart += geometryOffsets.y / 4;
 
+
+
   uint primCount = primMax + 1;
   uint vertCount = vertMax + 1;
+  
   
   for (uint i = 0; i < uint(NVMSH_VERTEX_RUNS); i++) 
   {
@@ -263,10 +221,9 @@ void main()
       vidx += geometryOffsets.w;
     
       vec4 hPos = procVertex(vert, vidx);
-      
-      procAttributes(vert, vidx);
     }
   }
+
   
   // PRIMITIVE TOPOLOGY  
   {
@@ -284,6 +241,7 @@ void main()
     }
   }
 
-  if (laneID == 0)
+  if (laneID == 0) {
     gl_PrimitiveCountNV = primCount;
+  }
 }

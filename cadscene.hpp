@@ -286,8 +286,6 @@ public:
     bool     verbose         = true;
     bool     fp16            = false;
     bool     allowShorts     = true;
-    bool     colorizeExtra   = false;
-    uint32_t extraAttributes = 0;
 
     // must not change order
     uint32_t           meshVertexCount    = 64;
@@ -322,8 +320,7 @@ public:
 
   size_t getVertexAttributeSize() const
   {
-    return m_cfg.fp16 ? (sizeof(VertexAttributesFP16) + sizeof(half) * 4 * m_cfg.extraAttributes) :
-                        (sizeof(VertexAttributes) + sizeof(float) * 4 * m_cfg.extraAttributes);
+    return m_cfg.fp16 ? sizeof(VertexAttributesFP16) : sizeof(VertexAttributes);
   }
 
   void* getVertex(void* data, size_t index) const { return ((uint8_t*)data) + (getVertexSize() * index); }

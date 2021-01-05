@@ -259,7 +259,6 @@ public:
       : AppWindowProfilerVK(false, true)
 #endif
   {
-    m_modelConfig.extraAttributes = 1;
     setupConfigParameters();
 
 #if defined(NDEBUG)
@@ -340,7 +339,6 @@ std::string Sample::getShaderPrepend()
   return prepend + nvh::stringFormat("#define NVMESHLET_VERTEX_COUNT %d\n", m_modelConfig.meshVertexCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
-         + nvh::stringFormat("#define EXTRA_ATTRIBUTES %d\n", m_modelConfig.extraAttributes)
          + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0)
          + nvh::stringFormat("#define SHOW_NORMAL %d\n", m_tweak.showNormals ? 1 : 0);
 }
@@ -373,7 +371,6 @@ bool Sample::initScene(const char* filename, int clones, int cloneaxis)
     LOGI("\nscene %s\n", filename);
     LOGI("meshlet max vertex:     %2d\n", m_scene.m_cfg.meshVertexCount);
     LOGI("meshlet max primitives: %2d\n", m_scene.m_cfg.meshPrimitiveCount);
-    LOGI("extra attributes:       %2d\n", m_scene.m_cfg.extraAttributes);
     LOGI("allow short indices:    %2d\n", m_scene.m_cfg.allowShorts ? 1 : 0);
     LOGI("use fp16 vertices:      %2d\n", m_scene.m_cfg.fp16 ? 1 : 0);
     LOGI("geometries: %9d\n", uint32_t(m_scene.m_geometry.size()));
@@ -423,12 +420,9 @@ void Sample::initRenderer(int typesort)
       m_resources->deinit();
     }
     m_resources                    = Renderer::getRegistry()[type]->resources();
-    m_resources->m_extraAttributes = m_modelConfig.extraAttributes;
-#if HAS_OPENGL
-    bool valid = m_resources->init(&m_contextWindow, &m_profiler);
-#else
+
     bool valid = m_resources->init(&m_context, &m_swapChain, &m_profiler);
-#endif
+
     valid = valid
             && m_resources->initFramebuffer(m_windowState.m_swapSize[0], m_windowState.m_swapSize[1],
                                             m_tweak.supersample, getVsync());
@@ -648,7 +642,6 @@ void Sample::processUI(int width, int height, double time)
     ImGui::Separator();
     ImGuiH::InputIntClamped("meshlet vertices", &m_modelConfig.meshVertexCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGuiH::InputIntClamped("meshlet primitives", &m_modelConfig.meshPrimitiveCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
-    ImGuiH::InputIntClamped("extra v4 attributes", &m_modelConfig.extraAttributes, 0, 7);
     ImGui::Checkbox("model fp16 attributes", &m_modelConfig.fp16);
     ImGuiH::InputIntClamped("model copies", &m_tweak.copies, 1, 256, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::Separator();
@@ -711,7 +704,6 @@ void Sample::think(double time)
                            m_windowState.m_mouseButtonFlags, m_windowState.m_mouseWheel);
 
   if(m_windowState.onPress(KEY_R)
-     ||m_modelConfig.extraAttributes != m_lastModelConfig.extraAttributes
      || m_modelConfig.meshPrimitiveCount != m_lastModelConfig.meshPrimitiveCount
      || m_modelConfig.meshVertexCount != m_lastModelConfig.meshVertexCount || m_shaderprepend != m_lastShaderPrepend
      || m_tweak.showBboxes != m_lastTweak.showBboxes || m_tweak.showNormals != m_lastTweak.showNormals)
@@ -943,8 +935,6 @@ void Sample::setupConfigParameters()
   m_parameterList.add("verbose", &m_modelConfig.verbose);
   m_parameterList.add("allowshorts", &m_modelConfig.allowShorts);
   m_parameterList.add("fp16vertices", &m_modelConfig.fp16);
-  m_parameterList.add("extraattributes", &m_modelConfig.extraAttributes);
-  m_parameterList.add("colorizeextra", &m_modelConfig.colorizeExtra);
 
   m_parameterList.add("objectfirst", &m_tweak.objectFrom);
   m_parameterList.add("objectnum", &m_tweak.objectNum);

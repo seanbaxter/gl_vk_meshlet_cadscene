@@ -23,6 +23,10 @@ uvec4 meshletDescs[];
 [[spirv::push]]
 uvec4 geometryOffsets;
 
+constexpr int div_up(int x, int y) {
+  return (x + y - 1) / y;
+}
+
 struct meshlet_t {
   uint vertMax, primMax, primStart, primDiv, vidxStart, vidxBits, vidxDiv;
 };
@@ -43,6 +47,8 @@ inline meshlet_t decodeMeshlet(uvec4 meshletDesc) {
   meshlet.primDiv    = 4;
   meshlet.primStart  = (packOffset + ((vMax + 1 + meshlet.vidxDiv - 1) / 
     meshlet.vidxDiv) + 1) & ~1;
+
+  return meshlet;
 }
 
 

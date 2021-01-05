@@ -50,9 +50,6 @@ layout(location=0) in Interpolants {
   float dummy;
   vec3  wNormal;
   flat uint meshletID;
-#if EXTRA_ATTRIBUTES
-  vec4 xtra[EXTRA_ATTRIBUTES];
-#endif
 } IN;
 
 //////////////////////////////////////////////////
@@ -79,10 +76,4 @@ void main()
 
   vec4 diffuse  = vec4(abs(dot(normal,lightDir)));
   out_Color = diffuse * color;
-
-  #if EXTRA_ATTRIBUTES
-    for (int i = 0; i < EXTRA_ATTRIBUTES; i++){
-      out_Color += IN.xtra[i];
-    }
-  #endif
 }

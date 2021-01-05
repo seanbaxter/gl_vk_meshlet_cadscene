@@ -69,14 +69,8 @@
 #define NVMESHLET_PRIMITIVE_COUNT   126
 #endif
 
-#ifndef EXTRA_ATTRIBUTES
-// add how many extra fake attributes (vec4) you want to use
-#define EXTRA_ATTRIBUTES    4
-#endif
-
 #define NUM_CLIPPING_PLANES 3
 
-#define NORMAL_STRIDE (1 + EXTRA_ATTRIBUTES)
 
 #define USE_TASK_STAGE 1
 

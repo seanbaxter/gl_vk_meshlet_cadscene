@@ -505,8 +505,8 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
 
   mesh_module = nvvk::createShaderModule(
     m_device,
-    (const uint32_t*)bbox_shaders.spirv_data,
-    bbox_shaders.spirv_size
+    (const uint32_t*)mesh_shaders.spirv_data,
+    mesh_shaders.spirv_size
   );
 
 
@@ -1105,10 +1105,10 @@ void ResourcesVK::initPipes()
         pipelineInfo.stageCount = 2;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
         stage0.module           = raster_module;
-        stage0.pName            = raster_shaders.pairs[m_extraAttributes].vert;
+        stage0.pName            = raster_shaders.vert;
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage1.module           = raster_module;
-        stage1.pName            = raster_shaders.pairs[m_extraAttributes].frag;
+        stage1.pName            = raster_shaders.frag;
         break;
 
       case MODE_BBOX:
@@ -1125,11 +1125,14 @@ void ResourcesVK::initPipes()
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_TASK_BIT_NV;
         stage0.module           = m_shaderManager.get(m_shaders.object_task);
+      //  stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
+      //  stage1.module           = mesh_module;
+      //  stage1.pName            = mesh_shaders.mesh;
         stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
         stage1.module           = m_shaderManager.get(m_shaders.object_task_mesh);
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = raster_module;
-        stage2.pName            = raster_shaders.pairs[m_extraAttributes].frag;
+        stage2.pName            = raster_shaders.frag;
         break;
     }
 
@@ -1337,7 +1340,6 @@ void ResourcesVK::resetTempResources()
 bool ResourcesVK::initScene(const CadScene& cadscene)
 {
   m_fp16                = cadscene.m_cfg.fp16;
-  m_extraAttributes     = cadscene.m_cfg.extraAttributes;
   m_vertexSize          = (uint32_t)cadscene.getVertexSize();
   m_vertexAttributeSize = (uint32_t)cadscene.getVertexAttributeSize();
 
