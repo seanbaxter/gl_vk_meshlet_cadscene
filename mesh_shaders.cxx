@@ -90,15 +90,17 @@ void mesh_shader() {
   constexpr int vert_runs = div_up(vert_count, GROUP_SIZE);
   constexpr int index_runs = div_up(3 * prim_count, 8 * GROUP_SIZE);
 
+  uvec4 geometryOffsets = shader_push<uvec4>;
+
   uint meshletID = taskIn.baseID + taskIn.subIDs[glcomp_WorkGroupID.x];
   uint laneID = glcomp_LocalInvocationID.x;
 
   // decode meshletDesc
-  uvec4 desc = meshletDescs[meshletID + push.geometryOffsets.x];
+  uvec4 desc = meshletDescs[meshletID + geometryOffsets.x];
   meshlet_t meshlet = decodeMeshlet(desc);
 
-  meshlet.vidxStart += push.geometryOffsets.y / 4;
-  meshlet.primStart += push.geometryOffsets.y / 4;
+  meshlet.vidxStart += geometryOffsets.y / 4;
+  meshlet.primStart += geometryOffsets.y / 4;
 
   uint primCount = meshlet.primMax + 1;
   uint vertCount = meshlet.vertMax + 1;
@@ -115,7 +117,7 @@ void mesh_shader() {
       vidx <<= meshlet.vidxBits * (1 - shift); 
       vidx >>= meshlet.vidxBits;
       
-      vidx += push.geometryOffsets.w;
+      vidx += geometryOffsets.w;
     
       vec4 hPos = procVertex<vert_count>(vert, vidx, meshletID);
     }

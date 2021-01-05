@@ -14,10 +14,11 @@ struct bbox_shaders_t {
   size_t spirv_size;
 
   const char* vert;
-  const char* geom[2][2];
+  const char* geom;
   const char* frag;
 };
 extern const bbox_shaders_t bbox_shaders;
+extern const bbox_shaders_t bbox_shaders2;
 
 struct mesh_shaders_t {
   const char* spirv_data;

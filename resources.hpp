@@ -31,12 +31,8 @@
 #include <nvgl/glsltypes_gl.hpp>
 #include <nvh/profiler.hpp>
 #include <platform.h>
-#if HAS_OPENGL
-#include <nvgl/contextwindow_gl.hpp>
-#else
 #include <nvvk/context_vk.hpp>
 #include <nvvk/swapchain_vk.hpp>
-#endif
 
 #include <algorithm>
 
@@ -84,14 +80,12 @@ public:
   virtual void synchronize() {}
 
   // Can't virtualize it anymore :-(
-#if HAS_OPENGL
-  virtual bool init(nvgl::ContextWindow* window, nvh::Profiler* profiler) { return false; }
-#else
+
   virtual bool init(nvvk::Context* deviceInstance, nvvk::SwapChain* swapChain, nvh::Profiler* profiler)
   {
     return false;
   }
-#endif
+
   virtual void deinit() {}
 
   virtual bool initPrograms(const std::string& path, const std::string& prepend) { return true; }

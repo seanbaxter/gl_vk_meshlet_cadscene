@@ -34,8 +34,6 @@
 
 ////////////////////////////////////////////////
 
-#if IS_VULKAN
-
   layout(std140, binding = SCENE_UBO_VIEW, set = DSET_SCENE) uniform sceneBuffer {
     SceneData scene;
   };
@@ -44,38 +42,14 @@
     ObjectData object;
   };
 
-#else
-
-  layout(std140, binding = UBO_SCENE_VIEW) uniform sceneBuffer {
-    SceneData scene;
-  };
-
-  layout(std140, binding = UBO_OBJECT) uniform objectBuffer {
-    ObjectData object;
-  };
-
-#endif
-
 /////////////////////////////////////////
 
 #define BOX_SIDES     6
 
-#ifndef SHOW_BOX
-#define SHOW_BOX      1
-#endif
-
-#ifndef SHOW_NORMAL
-#define SHOW_NORMAL   0
-#endif
-
 // render the 6 visible sides based on view direction and box normal
-#if SHOW_NORMAL && SHOW_BOX
-layout(points,invocations=7) in;  
-#elif SHOW_BOX
+
 layout(points,invocations=6) in;  
-#else
-layout(points,invocations=1) in;  
-#endif
+
 
 // one side each invocation
 layout(triangle_strip,max_vertices=4) out;
@@ -95,7 +69,7 @@ void main()
   //bool skip = scene.filterID >= 0 && objid != scene.filterID;
   //if (skip) return;
   
-  if (IN[0].meshletID == ~0u) return;
+  if (IN[0].meshletID == -1) return;
 
   mat4 worldTM  = object.worldMatrix;
   vec3 worldCtr = (worldTM * vec4(IN[0].bboxCtr, 1)).xyz;
@@ -141,40 +115,8 @@ void main()
 
   faceNormal *= proj;
   edgeBasis1 *= proj;
+
   
-#if SHOW_NORMAL || (!SHOW_BOX)
-  #if SHOW_BOX
-  if (gl_InvocationID >= BOX_SIDES) 
-  #endif
-  {
-    // cone triangle
-    
-    meshletID = IN[0].meshletID;
-    gl_Position = scene.viewProjMatrix * vec4(worldCtr, 1);
-    EmitVertex();
-    
-    meshletID = IN[0].meshletID;
-    gl_Position = scene.viewProjMatrix * vec4(worldCtr + (edgeBasis0) * 0.1,1);
-    EmitVertex();
-    
-    vec3 worldDir = normalize(mat3(object.worldMatrixIT) * IN[0].coneNormal) * object.winding;
-    float len = (length(faceNormal) + length(edgeBasis0) + length(edgeBasis1)) / 3.0;
-    len *= IN[0].coneAngle > 0 ? 0.01 : 1.0;
-    
-    meshletID = IN[0].meshletID;
-    gl_Position = scene.viewProjMatrix * vec4(worldCtr + worldDir * len,1);
-    EmitVertex();
-    
-    meshletID = IN[0].meshletID;
-    gl_Position = scene.viewProjMatrix * vec4(worldCtr + (edgeBasis1) * 0.1,1);
-    EmitVertex();
-  }
-#endif
-#if SHOW_BOX
-  #if SHOW_NORMAL
-  else
-  #endif
-  {
     meshletID = IN[0].meshletID;
     gl_Position = scene.viewProjMatrix * vec4(worldCtr + (faceNormal - edgeBasis0 - edgeBasis1),1);
     EmitVertex();
@@ -190,6 +132,5 @@ void main()
     meshletID = IN[0].meshletID;
     gl_Position = scene.viewProjMatrix * vec4(worldCtr + (faceNormal + edgeBasis0 + edgeBasis1),1);
     EmitVertex();
-  }
-#endif
+  
 }

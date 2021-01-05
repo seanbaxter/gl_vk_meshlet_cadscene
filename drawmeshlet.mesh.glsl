@@ -34,19 +34,13 @@
 
 #include "config.h"
 
-//////////////////////////////////////
-
-  #extension GL_NV_mesh_shader : require
-
-//////////////////////////////////////
-
-  // one of them provides uint8_t
-  #extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
-  #extension GL_NV_gpu_shader5 : enable
-    
-  #extension GL_KHR_shader_subgroup_basic : require
-  #extension GL_KHR_shader_subgroup_ballot : require
-  #extension GL_KHR_shader_subgroup_vote : require
+#extension GL_NV_mesh_shader : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+#extension GL_NV_gpu_shader5 : enable
+  
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_vote : require
 
 //////////////////////////////////////
 
@@ -60,14 +54,6 @@
 layout(local_size_x=GROUP_SIZE) in;
 layout(max_vertices=NVMESHLET_VERTEX_COUNT, max_primitives=NVMESHLET_PRIMITIVE_COUNT) out;
 layout(triangles) out;
-
-#define USE_MESH_SHADERCULL     0
-#define USE_EARLY_ATTRIBUTES    1
-#define USE_TASK_STAGE          1
-#define USE_MESH_FRUSTUMCULL    0
-
-
-// UNIFORMS
 
 layout(push_constant) uniform pushConstant{
   uvec4     geometryOffsets;

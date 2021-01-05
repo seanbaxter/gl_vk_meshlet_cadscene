@@ -11,6 +11,10 @@ template<auto index, typename type_t = @enum_type(index)>
 [[using spirv: out, location((int)index)]]
 type_t shader_out;
 
+template<typename type_t>
+[[using spirv: push]]
+type_t shader_push;
+
 [[using spirv: uniform, binding(SCENE_UBO_VIEW), set(DSET_SCENE)]]
 SceneData scene;
 

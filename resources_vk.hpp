@@ -109,6 +109,7 @@ public:
   // Circle-generated modules.
   VkShaderModule raster_module;
   VkShaderModule bbox_module;
+  VkShaderModule bbox_module2;
   VkShaderModule mesh_module;
 
 
@@ -133,15 +134,8 @@ public:
 
   nvvk::ShaderModuleManager m_shaderManager;
   ShaderModuleIDs           m_shaders;
-
-#if HAS_OPENGL
-  //nvvk::Context m_ctxContent;
-  VkSemaphore   m_semImageWritten;
-  VkSemaphore   m_semImageRead;
-  nvvk::Context m_contextInstance;
-#else
   const nvvk::SwapChain* m_swapChain;
-#endif
+
   nvvk::Context* m_context = nullptr;
 
   VkDevice                     m_device    = VK_NULL_HANDLE;
@@ -180,11 +174,7 @@ public:
   }
   static bool isAvailable();
 
-#if HAS_OPENGL
-  bool init(nvgl::ContextWindow* window, nvh::Profiler* profiler) override;
-#else
   bool init(nvvk::Context* context, nvvk::SwapChain* swapChain, nvh::Profiler* profiler) override;
-#endif
   void deinit() override;
 
   void initPipes();

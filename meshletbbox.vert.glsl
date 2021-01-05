@@ -87,16 +87,6 @@ void main()
   OUT.bboxCtr = ctr;
   OUT.bboxDim = dim;
   decodeNormalAngle(meshlet, object, OUT.coneNormal, OUT.coneAngle); 
-  
-  bool cull = earlyCull(meshlet, object);
-#if SHOW_CULLED
-  cull = !cull;
-#endif
-  
-  if (cull) {
-    OUT.meshletID = ~0u;
-  }
-  else {
-    OUT.meshletID = meshletID;
-  }
+
+  OUT.meshletID = earlyCull(meshlet, object) ? -1 : meshletID;
 }

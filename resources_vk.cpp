@@ -58,16 +58,11 @@ bool ResourcesVK::isAvailable()
 
 /////////////////////////////////////////////////////////////////////////////////
 
-
 void ResourcesVK::submissionExecute(VkFence fence, bool useImageReadWait, bool useImageWriteSignals)
 {
-  if(useImageReadWait && m_submissionWaitForRead)
-  {
-#if HAS_OPENGL
-    VkSemaphore semRead = m_semImageRead;
-#else
+  if(useImageReadWait && m_submissionWaitForRead) {
     VkSemaphore semRead    = m_swapChain->getActiveReadSemaphore();
-#endif
+
     if(semRead)
     {
       m_submission.enqueueWait(semRead, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -77,11 +72,8 @@ void ResourcesVK::submissionExecute(VkFence fence, bool useImageReadWait, bool u
 
   if(useImageWriteSignals)
   {
-#if HAS_OPENGL
-    VkSemaphore semWritten = m_semImageWritten;
-#else
     VkSemaphore semWritten = m_swapChain->getActiveWrittenSemaphore();
-#endif
+
     if(semWritten)
     {
       m_submission.enqueueSignal(semWritten);
@@ -105,19 +97,6 @@ void ResourcesVK::endFrame()
   submissionExecute(m_ringFences.getFence(), true, true);
   assert(m_withinFrame);
   m_withinFrame = false;
-#if HAS_OPENGL
-  {
-    // blit to gl backbuffer
-    glDisable(GL_DEPTH_TEST);
-    glViewport(0, 0, m_framebuffer.renderWidth / m_framebuffer.supersample, m_framebuffer.renderHeight / m_framebuffer.supersample);
-    glWaitVkSemaphoreNV((GLuint64)m_semImageWritten);
-    glDrawVkImageNV((GLuint64)(VkImage)(m_framebuffer.useResolved ? m_framebuffer.imgColorResolved : m_framebuffer.imgColor),
-                    0, 0, 0, m_framebuffer.renderWidth / m_framebuffer.supersample,
-                    m_framebuffer.renderHeight / m_framebuffer.supersample, 0, 0, 1, 1, 0);
-    glEnable(GL_DEPTH_TEST);
-    glSignalVkSemaphoreNV((GLuint64)m_semImageRead);
-  }
-#endif
 }
 
 void ResourcesVK::blitFrame(const FrameConfig& global)
@@ -194,8 +173,6 @@ void ResourcesVK::blitFrame(const FrameConfig& global)
     }
   }
 
-
-#if !HAS_OPENGL
   {
     // blit to vk backbuffer
     VkImageBlit region               = {0};
@@ -219,7 +196,6 @@ void ResourcesVK::blitFrame(const FrameConfig& global)
     cmdImageTransition(cmd, m_swapChain->getActiveImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
   }
-#endif
 
   if(m_framebuffer.useResolved)
   {
@@ -249,11 +225,7 @@ void ResourcesVK::getStats(CullStats& stats)
   m_memAllocator.unmap(m_common.statsReadAID);
 }
 
-#if HAS_OPENGL
-bool ResourcesVK::init(nvgl::ContextWindow* contextWindow, nvh::Profiler* profiler)
-#else
 bool ResourcesVK::init(nvvk::Context* context, nvvk::SwapChain* swapChain, nvh::Profiler* profiler)
-#endif
 {
   m_fboChangeID  = 0;
   m_pipeChangeID = 0;
@@ -493,6 +465,12 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
     m_device,
     (const uint32_t*)bbox_shaders.spirv_data,
     bbox_shaders.spirv_size
+  );
+
+  bbox_module2 = nvvk::createShaderModule(
+    m_device,
+    (const uint32_t*)bbox_shaders2.spirv_data,
+    bbox_shaders2.spirv_size
   );
 
   mesh_module = nvvk::createShaderModule(
@@ -1104,14 +1082,17 @@ void ResourcesVK::initPipes()
       case MODE_BBOX:
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
-        stage0.module           = m_shaderManager.get(m_shaders.bbox_vertex);
-        stage0.pName            = "main";
+        stage0.module           = bbox_module;
+        stage0.pName            = bbox_shaders.vert;
+        // stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
+        // stage1.module           = bbox_module2;
+        // stage1.pName            = bbox_shaders2.geom;
         stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
         stage1.module           = m_shaderManager.get(m_shaders.bbox_geometry);
         stage1.pName            = "main";
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage2.module           = m_shaderManager.get(m_shaders.bbox_fragment);
-        stage2.pName            = "main";
+        stage2.module           = bbox_module;
+        stage2.pName            = bbox_shaders.frag;
         break;
 
       case MODE_TASK_MESH:

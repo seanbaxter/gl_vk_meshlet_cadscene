@@ -152,14 +152,7 @@ public:
   std::vector<ParameterLine> line;
 };
 
-class Sample
-#if HAS_OPENGL
-    : public nvgl::AppWindowProfilerGL
-#else
-    : public nvvk::AppWindowProfilerVK
-#endif
-
-{
+class Sample : public nvvk::AppWindowProfilerVK {
 
   enum GuiEnums
   {
@@ -174,9 +167,8 @@ public:
     bool     animate           = false;
     bool     colorize          = false;
     bool     showBboxes        = false;
-    bool     showNormals       = false;
     float    fov               = 45.0f;
-    int      renderer          = 0;
+    int      renderer          = 1;
     int      viewPoint         = 0;
     int      supersample       = 2;
     int      copies            = 1;
@@ -249,22 +241,15 @@ public:
 
   std::string getShaderPrepend();
 
-  Sample()
-#if HAS_OPENGL
-      : AppWindowProfilerGL(false, true)
-#else
-      : AppWindowProfilerVK(false, true)
-#endif
-  {
+  Sample() : AppWindowProfilerVK(false, true) {
     setupConfigParameters();
 
 #if defined(NDEBUG)
     setVsync(false);
 #endif
 
-#if !HAS_OPENGL
     setupVulkanContextInfo(m_contextInfo);
-#endif
+
   }
 
 public:
@@ -336,8 +321,7 @@ std::string Sample::getShaderPrepend()
   return prepend + nvh::stringFormat("#define NVMESHLET_VERTEX_COUNT %d\n", m_modelConfig.meshVertexCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
          + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
-         + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0)
-         + nvh::stringFormat("#define SHOW_NORMAL %d\n", m_tweak.showNormals ? 1 : 0);
+         + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0);
 }
 
 bool Sample::initProgram()
@@ -624,12 +608,13 @@ void Sample::processUI(int width, int height, double time)
       ImGui::Separator();
     }
 
-
     m_ui.enumCombobox(GUI_RENDERER, "renderer", &m_tweak.renderer);
     m_ui.enumCombobox(GUI_VIEWPOINT, "viewpoint", &m_tweak.viewPoint);
     ImGui::Checkbox("(mesh) colorize by meshlet", &m_tweak.colorize);
-    ImGui::Checkbox("show meshlet bboxes", &m_tweak.showBboxes);
-    ImGui::Checkbox("show meshlet normals", &m_tweak.showNormals);
+
+    if(1 == m_tweak.renderer)
+      ImGui::Checkbox("show meshlet bboxes", &m_tweak.showBboxes);
+
     //ImGui::Checkbox("animate", &m_tweak.animate);
     ImGui::SliderFloat("fov", &m_tweak.fov, 1, 120, "%.0f");
     ImGui::Separator();
@@ -703,7 +688,7 @@ void Sample::think(double time)
   if(m_windowState.onPress(KEY_R)
      || m_modelConfig.meshPrimitiveCount != m_lastModelConfig.meshPrimitiveCount
      || m_modelConfig.meshVertexCount != m_lastModelConfig.meshVertexCount || m_shaderprepend != m_lastShaderPrepend
-     || m_tweak.showBboxes != m_lastTweak.showBboxes || m_tweak.showNormals != m_lastTweak.showNormals)
+     || m_tweak.showBboxes != m_lastTweak.showBboxes)
   {
     m_resources->synchronize();
     m_resources->reloadPrograms(getShaderPrepend());
@@ -752,7 +737,7 @@ void Sample::think(double time)
   {
     m_frameConfig.winWidth     = width;
     m_frameConfig.winHeight    = height;
-    m_frameConfig.meshletBoxes = m_tweak.showBboxes || m_tweak.showNormals;
+    m_frameConfig.meshletBoxes = 1 == m_tweak.renderer && m_tweak.showBboxes;
 
     SceneData& sceneUbo = m_frameConfig.sceneUbo;
 
@@ -943,7 +928,6 @@ void Sample::setupConfigParameters()
   m_parameterList.add("meshlet", &m_modelConfig.meshVertexCount, nullptr, 2);
 
   m_parameterList.add("showbbox", &m_tweak.showBboxes);
-  m_parameterList.add("shownormals", &m_tweak.showNormals);
 
   m_parameterList.add("clippos", m_tweak.clipPosition.vec_array, nullptr, 3);
 
