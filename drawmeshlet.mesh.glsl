@@ -71,6 +71,7 @@ layout(triangles) out;
 
 layout(push_constant) uniform pushConstant{
   uvec4     geometryOffsets;
+  uvec4 assigns;
   // x: mesh, y: prim, z: index, w: vertex
 };
 
@@ -102,30 +103,13 @@ layout(binding=GEOMETRY_TEX_ABO,  set=DSET_GEOMETRY)  uniform samplerBuffer  tex
 /////////////////////////////////////////////////
 // MESH INPUT
 
-  taskNV in Task {
-    uint    baseID;
-    uint8_t subIDs[GROUP_SIZE];
-  } IN;
-  // gl_WorkGroupID.x runs from [0 .. parentTask.gl_TaskCountNV - 1]
-  uint meshletID = IN.baseID + IN.subIDs[gl_WorkGroupID.x];
-  uint laneID = gl_LocalInvocationID.x;
-
-
-////////////////////////////////////////////////////////////
-// INPUT
-
-// If you work from fixed vertex definitions and don't need dynamic 
-// format conversions by texture formats, or don't mind
-// creating multiple shader permutations, you may want to
-// use ssbos here, instead of tbos for a bit more performance.
-
-vec3 getPosition( uint vidx ){
-  return texelFetch(texVbo, int(vidx)).xyz;
-}
-
-vec3 getNormal( uint vidx ){
-  return texelFetch(texAbo, int(vidx * 1)).xyz;
-}
+taskNV in Task {
+  uint    baseID;
+  uint8_t subIDs[GROUP_SIZE];
+} IN;
+// gl_WorkGroupID.x runs from [0 .. parentTask.gl_TaskCountNV - 1]
+uint meshletID = IN.baseID + IN.subIDs[gl_WorkGroupID.x];
+uint laneID = gl_LocalInvocationID.x;
 
 
 ////////////////////////////////////////////////////////////
@@ -143,7 +127,7 @@ layout(location=0) out Interpolants {
 
 vec4 procVertex(const uint vert, uint vidx)
 {
-  vec3 oPos = getPosition(vidx);
+  vec3 oPos = texelFetch(texVbo, int(vidx)).xyz;
   vec3 wPos = (object.worldMatrix  * vec4(oPos,1)).xyz;
   vec4 hPos = (scene.viewProjMatrix * vec4(wPos,1));
   
@@ -153,7 +137,7 @@ vec4 procVertex(const uint vert, uint vidx)
   OUT[vert].dummy = 0;
   OUT[vert].meshletID = meshletID;
   
-  vec3 oNormal = getNormal(vidx);
+  vec3 oNormal = texelFetch(texAbo, int(vidx)).xyz;
   vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
   OUT[vert].wNormal = wNormal;
 
@@ -169,16 +153,9 @@ vec4 procVertex(const uint vert, uint vidx)
   // you can express the attribute processing more like a regular
   // vertex shader
 
-  #define NVMSH_INDEX_BITS      8
-  #define NVMSH_PACKED4X8_GET(packed, idx)   (((packed) >> (NVMSH_INDEX_BITS * (idx))) & 255)
-  
-  
   // only for tight packing case, 8 indices are loaded per thread
   #define NVMSH_PRIMITIVE_INDICES_RUNS  ((NVMESHLET_PRIMITIVE_COUNT * 3 + GROUP_SIZE * 8 - 1) / (GROUP_SIZE * 8))
-
-  // processing loops
   #define NVMSH_VERTEX_RUNS     ((NVMESHLET_VERTEX_COUNT + GROUP_SIZE - 1) / GROUP_SIZE)
-  #define NVMSH_PRIMITIVE_RUNS  ((NVMESHLET_PRIMITIVE_COUNT + GROUP_SIZE - 1) / GROUP_SIZE)
   
   #define nvmsh_writePackedPrimitiveIndices4x8NV writePackedPrimitiveIndices4x8NV
 

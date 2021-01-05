@@ -101,11 +101,6 @@ public:
 
   struct ShaderModuleIDs
   {
-    nvvk::ShaderModuleID object_vertex;
-    nvvk::ShaderModuleID object_fragment;
-    nvvk::ShaderModuleID object_mesh;
-    nvvk::ShaderModuleID object_task_mesh;
-    nvvk::ShaderModuleID object_task;
     nvvk::ShaderModuleID bbox_vertex;
     nvvk::ShaderModuleID bbox_geometry;
     nvvk::ShaderModuleID bbox_fragment;

@@ -31,17 +31,8 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#if HAS_OPENGL
-#include <include_gl.h>
-#include <nvgl/contextwindow_gl.hpp>
-#endif
-
 bool vulkanInitLibrary()
 {
-#if HAS_OPENGL
-  if (!load_GL_NV_draw_vulkan_image(nvgl::ContextWindow::sysGetProcAddress)) return false;
-#endif
-
 #if USEVULKANSDK
   return true;
 #else

@@ -470,10 +470,7 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
   m_shaderManager.m_prepend = std::string("#define IS_VULKAN 1\n") + prepend;
 
   ///////////////////////////////////////////////////////////////////////////////////////////
-  {
-    m_shaders.object_vertex   = m_shaderManager.createShaderModule(VK_SHADER_STAGE_VERTEX_BIT, "draw.vert.glsl");
-    m_shaders.object_fragment = m_shaderManager.createShaderModule(VK_SHADER_STAGE_FRAGMENT_BIT, "draw.frag.glsl");
-  }
+
 
   {
     m_shaders.bbox_vertex   = m_shaderManager.createShaderModule(VK_SHADER_STAGE_VERTEX_BIT, "meshletbbox.vert.glsl");
@@ -481,11 +478,6 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
     m_shaders.bbox_fragment = m_shaderManager.createShaderModule(VK_SHADER_STAGE_FRAGMENT_BIT, "meshletbbox.frag.glsl");
   }
 
-  if(m_nativeMeshSupport)
-  {
-    m_shaders.object_task_mesh = m_shaderManager.createShaderModule(VK_SHADER_STAGE_MESH_BIT_NV, "drawmeshlet.mesh.glsl");
-    m_shaders.object_task = m_shaderManager.createShaderModule(VK_SHADER_STAGE_TASK_BIT_NV, "drawmeshlet.task.glsl");
-  }
   ///////////////////////////////////////////////////////////////////////////////////////////
 
   bool valid = m_shaderManager.areShaderModulesValid();
@@ -1089,15 +1081,13 @@ void ResourcesVK::initPipes()
 
     VkPipelineShaderStageCreateInfo& stage0 = stages[0];
     stage0.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stage0.pName                            = "main";
 
     VkPipelineShaderStageCreateInfo& stage1 = stages[1];
     stage1.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stage1.pName                            = "main";
 
     VkPipelineShaderStageCreateInfo& stage2 = stages[2];
     stage2.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stage2.pName                            = "main";
+
 
     switch(mode)
     {
@@ -1115,21 +1105,26 @@ void ResourcesVK::initPipes()
         pipelineInfo.stageCount = 3;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
         stage0.module           = m_shaderManager.get(m_shaders.bbox_vertex);
+        stage0.pName            = "main";
         stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
         stage1.module           = m_shaderManager.get(m_shaders.bbox_geometry);
+        stage1.pName            = "main";
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = m_shaderManager.get(m_shaders.bbox_fragment);
+        stage2.pName            = "main";
         break;
 
       case MODE_TASK_MESH:
         pipelineInfo.stageCount = 3;
+
         stage0.stage            = VK_SHADER_STAGE_TASK_BIT_NV;
-        stage0.module           = m_shaderManager.get(m_shaders.object_task);
-      //  stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
-      //  stage1.module           = mesh_module;
-      //  stage1.pName            = mesh_shaders.mesh;
+        stage0.module           = mesh_module;
+        stage0.pName            = mesh_shaders.task;
+
         stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
-        stage1.module           = m_shaderManager.get(m_shaders.object_task_mesh);
+        stage1.module           = mesh_module;
+        stage1.pName            = mesh_shaders.mesh;
+     
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = raster_module;
         stage2.pName            = raster_shaders.frag;

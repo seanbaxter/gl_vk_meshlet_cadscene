@@ -13,7 +13,7 @@ struct Vertex {
 [[spirv::vert]]
 void bbox_vert() {
   uint meshletID = glvert_VertexIndex;
-  uvec4 meshlet = meshletDescs[meshletID + geometryOffsets.x];
+  uvec4 meshlet = meshletDescs[meshletID + push.geometryOffsets.x];
 
   vec3 bboxMin;
   vec3 bboxMax;

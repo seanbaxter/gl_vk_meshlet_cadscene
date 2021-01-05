@@ -21,7 +21,10 @@ ObjectData object;
 uvec4 meshletDescs[];
 
 [[spirv::push]]
-uvec4 geometryOffsets;
+struct {
+  uvec4 geometryOffsets;
+  uvec4 assigns;
+} push;
 
 constexpr int div_up(int x, int y) {
   return (x + y - 1) / y;

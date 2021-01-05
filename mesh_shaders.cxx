@@ -24,6 +24,36 @@ struct Task {
 [[spirv::perTaskOut]] Task taskOut;
 [[spirv::perTaskIn]] Task taskIn;
 
+////////////////////////////////////////////////////////////////////////////////
+
+[[using spirv: task, local_size(GROUP_SIZE)]]
+void task_shader() {
+  uint baseID = glcomp_WorkGroupID.x * GROUP_SIZE;
+  uint laneID = glcomp_LocalInvocationID.x;
+
+  baseID += push.assigns.x;
+  uvec4 desc = meshletDescs[min(baseID + laneID, push.assigns.y) + 
+    push.geometryOffsets.x];
+
+  bool render = !(baseID + laneID > push.assigns.y || earlyCull(desc, object));
+  
+  uvec4 vote  = gl_subgroupBallot(render);
+  uint  tasks = gl_subgroupBallotBitCount(vote);
+  uint  voteGroup = vote.x;
+
+  if (laneID == 0) {
+    glmesh_TaskCount = tasks;
+    taskOut.baseID = baseID;
+  }
+
+  uint idxOffset = gl_subgroupBallotExclusiveBitCount(vote);
+
+  if (render)
+    taskOut.subIDs[idxOffset] = laneID;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 template<int vert_count>
 vec4 procVertex(uint vert, uint vidx, uint meshletID) {
   // Stream the vertex position.
@@ -58,17 +88,17 @@ template<int vert_count, int prim_count>
 ]]
 void mesh_shader() {
   constexpr int vert_runs = div_up(vert_count, GROUP_SIZE);
-  constexpr int prim_runs = div_up(prim_count, GROUP_SIZE);
+  constexpr int index_runs = div_up(3 * prim_count, 8 * GROUP_SIZE);
 
   uint meshletID = taskIn.baseID + taskIn.subIDs[glcomp_WorkGroupID.x];
   uint laneID = glcomp_LocalInvocationID.x;
 
   // decode meshletDesc
-  uvec4 desc = meshletDescs[meshletID + geometryOffsets.x];
+  uvec4 desc = meshletDescs[meshletID + push.geometryOffsets.x];
   meshlet_t meshlet = decodeMeshlet(desc);
 
-  meshlet.vidxStart += geometryOffsets.y / 4;
-  meshlet.primStart += geometryOffsets.y / 4;
+  meshlet.vidxStart += push.geometryOffsets.y / 4;
+  meshlet.primStart += push.geometryOffsets.y / 4;
 
   uint primCount = meshlet.primMax + 1;
   uint vertCount = meshlet.vertMax + 1;
@@ -85,7 +115,7 @@ void mesh_shader() {
       vidx <<= meshlet.vidxBits * (1 - shift); 
       vidx >>= meshlet.vidxBits;
       
-      vidx += geometryOffsets.w;
+      vidx += push.geometryOffsets.w;
     
       vec4 hPos = procVertex<vert_count>(vert, vidx, meshletID);
     }
@@ -97,8 +127,7 @@ void mesh_shader() {
     uint readIndex = primCount * 3 - 1;
     uint readMax   = readIndex / 8;
 
-    for (int i = 0; i < prim_runs; ++i)
-    {
+    for (int i = 0; i < index_runs; ++i) {
       uint read = laneID + i * GROUP_SIZE;
       uint readUsed = min(read, readMax);
       uvec2 topology = primIndices2[readBegin + readUsed];
@@ -107,15 +136,14 @@ void mesh_shader() {
     }
   }
 
-  uint outTriangles = 0;
   if (laneID == 0)
-    glmesh_PrimitiveCount = outTriangles;
+    glmesh_PrimitiveCount = primCount;
 }
 
 const mesh_shaders_t mesh_shaders {
   __spirv_data,
   __spirv_size,
 
-  nullptr,
+  @spirv(task_shader),
   @spirv(mesh_shader<64, 126>)
 };

@@ -53,15 +53,12 @@ void setupVulkanContextInfo(nvvk::ContextCreateInfo& info)
   static VkPhysicalDeviceMeshShaderFeaturesNV meshFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV};
   static VkPhysicalDeviceFloat16Int8FeaturesKHR float16int8Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR};
   info.apiMajor                                                     = 1;
-  info.apiMinor                                                     = 1;
+  info.apiMinor                                                     = 2;
   info.compatibleDeviceIndex                                                       = Resources::s_vkDevice;
-#if HAS_OPENGL
-  // not compatible with GL extension mechanism
-  info.removeInstanceLayer("VK_LAYER_KHRONOS_validation");
-#endif
+
   info.addDeviceExtension(VK_NV_GLSL_SHADER_EXTENSION_NAME, true);  // flag optional, driver still supports it
   info.addDeviceExtension(VK_NV_MESH_SHADER_EXTENSION_NAME, true, &meshFeatures);
-  info.addDeviceExtension(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, true, &float16int8Features);
+  // info.addDeviceExtension(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, true, &float16int8Features);
 }
 
 // used for loading viewpoint files and material filter files
