@@ -1074,6 +1074,7 @@ void ResourcesVK::initPipes()
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
         stage0.module           = raster_module;
         stage0.pName            = raster_shaders.vert;
+
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage1.module           = raster_module;
         stage1.pName            = raster_shaders.frag;
@@ -1084,12 +1085,11 @@ void ResourcesVK::initPipes()
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
         stage0.module           = bbox_module;
         stage0.pName            = bbox_shaders.vert;
-        // stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
-        // stage1.module           = bbox_module2;
-        // stage1.pName            = bbox_shaders2.geom;
+        
         stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
-        stage1.module           = m_shaderManager.get(m_shaders.bbox_geometry);
-        stage1.pName            = "main";
+        stage1.module           = bbox_module2;
+        stage1.pName            = bbox_shaders2.geom;
+        
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = bbox_module;
         stage2.pName            = bbox_shaders.frag;

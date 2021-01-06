@@ -30,6 +30,14 @@ struct {
   uvec4 assigns;
 } push;
 
+struct Vertex {
+  vec3  bboxCtr;
+  vec3  bboxDim;
+  vec3  coneNormal;
+  float coneAngle;
+  uint  meshletID;
+};
+
 constexpr int div_up(int x, int y) {
   return (x + y - 1) / y;
 }

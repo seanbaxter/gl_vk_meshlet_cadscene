@@ -1,13 +1,5 @@
 #include "shaders_common.hxx"
 
-struct Vertex {
-  vec3  bboxCtr;
-  vec3  bboxDim;
-  vec3  coneNormal;
-  float coneAngle;
-  uint  meshletID;
-};
-
 // The normal is 1 triangle strip.
 // The bounding box is 6 triangle strips.
 [[using spirv:
@@ -17,14 +9,7 @@ struct Vertex {
 void bbox_geom() {
   // The input attribute is a Vertex[1], because the input type is points.
   // This would have a different dimension for edges or triangles.
-  Vertex vertex {
-    shader_in<0, vec3[1]>[0],
-    shader_in<1, vec3[1]>[0],
-    shader_in<2, vec3[1]>[0],
-    shader_in<3, float[1]>[0],
-    shader_in<4, uint[1]>[0]
-  };
-
+  Vertex vertex = shader_in<0, Vertex[1]>[0];
   mat4 worldTM = object.worldMatrix;
   vec3 worldCtr = (worldTM * vec4(vertex.bboxCtr, 1)).xyz;
 

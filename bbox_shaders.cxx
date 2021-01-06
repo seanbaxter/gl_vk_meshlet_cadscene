@@ -1,13 +1,5 @@
 #include "shaders_common.hxx"
 
-struct Vertex {
-  vec3  bboxCtr;
-  vec3  bboxDim;
-  vec3  coneNormal;
-  float coneAngle;
-  uint  meshletID;
-};
-
 [[spirv::vert]]
 void bbox_vert() {
   uint meshletID = glvert_VertexIndex;
