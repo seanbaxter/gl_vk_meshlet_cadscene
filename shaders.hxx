@@ -1,3 +1,7 @@
+#if __circle_build__ < 112
+#error "Circle build 112 required"
+#endif
+
 #pragma once
 
 struct raster_shaders_t {

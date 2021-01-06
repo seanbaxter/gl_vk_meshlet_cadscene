@@ -152,5 +152,5 @@ inline bool earlyCull(uvec4 meshletDesc, ObjectData object) {
     clipMax = max(clipMax, hPos.xyz / hPos.w);
   }
   
-  return (frustumBits != 0 || backface || clippingBits != 0);
+  return (frustumBits || backface || clippingBits);
 }

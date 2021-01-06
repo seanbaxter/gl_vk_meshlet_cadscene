@@ -32,6 +32,6 @@ const bbox_shaders_t bbox_shaders {
   __spirv_size,
 
   @spirv(bbox_vert),
-  0, // @spirv(bbox_geom),
+  0, //@spirv(bbox_geom),
   @spirv(bbox_frag)
 };
