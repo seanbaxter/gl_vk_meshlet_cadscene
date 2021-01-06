@@ -10,6 +10,10 @@ void bbox_geom() {
   // The input attribute is a Vertex[1], because the input type is points.
   // This would have a different dimension for edges or triangles.
   Vertex vertex = shader_in<0, Vertex[1]>[0];
+
+  if(-1 == vertex.meshletID)
+    return;
+
   mat4 worldTM = object.worldMatrix;
   vec3 worldCtr = (worldTM * vec4(vertex.bboxCtr, 1)).xyz;
 

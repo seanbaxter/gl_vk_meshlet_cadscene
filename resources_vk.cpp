@@ -1087,8 +1087,11 @@ void ResourcesVK::initPipes()
         stage0.pName            = bbox_shaders.vert;
         
         stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
-        stage1.module           = bbox_module2;
-        stage1.pName            = bbox_shaders2.geom;
+      // stage1.module           = m_shaderManager.get(m_shaders.bbox_geometry);
+      // stage1.pName            = "main";
+
+         stage1.module           = bbox_module2;
+         stage1.pName            = bbox_shaders2.geom;
         
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = bbox_module;
