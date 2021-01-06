@@ -59,17 +59,17 @@ vec4 procVertex(uint vert, uint vidx, uint meshletID) {
   vec3 wPos = (object.worldMatrix  * vec4(oPos,1)).xyz;
   vec4 hPos = (scene.viewProjMatrix * vec4(wPos,1));
   
-  glmesh_Output[vert].Position = hPos;
-  shader_out<0, vec3[vert_count]>[vert] = wPos;
-  shader_out<1, float[vert_count]>[vert] = 0;   // dummy
-
-  // Stream the vertex normal.
   vec3 oNormal = texelFetch(texAbo, vidx).xyz;
   vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
-  shader_out<2, vec3[vert_count]>[vert] = wNormal;
 
-  // Stream the meshletID
-  shader_out<3, int[vert_count]>[vert] = meshletID;
+  glmesh_Output[vert].Position = hPos;
+
+  Vertex vertex { };
+  vertex.pos = wPos;
+  vertex.dummy = 0;
+  vertex.normal = wNormal;
+  vertex.meshletID = meshletID;
+  shader_out<0, Vertex[vert_count]>[vert] = vertex;
   
   // Perform clipping against user clip planes.
   if constexpr(clip_primitives) {
