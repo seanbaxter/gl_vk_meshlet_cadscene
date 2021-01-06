@@ -1,6 +1,6 @@
 ![image](meshlet1.png)
 
-# Vulkan & OpenGL CAD Mesh Shader Sample
+# Vulkan CAD Mesh Shader Sample
 
 This branch is the [Circle C++ shaders](https://github.com/seanbaxter/shaders/blob/master/README.md) port of [Christoph Kubisch](https://twitter.com/pixeljetstream)'s **[Vulkan meshlet cadscene sample](https://github.com/nvpro-samples/gl_vk_meshlet_cadscene/)**.
 
