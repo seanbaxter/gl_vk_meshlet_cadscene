@@ -99,13 +99,6 @@ public:
     VkDescriptorBufferInfo statsReadInfo;
   };
 
-  struct ShaderModuleIDs
-  {
-    nvvk::ShaderModuleID bbox_vertex;
-    nvvk::ShaderModuleID bbox_geometry;
-    nvvk::ShaderModuleID bbox_fragment;
-  };
-
   // Circle-generated modules.
   VkShaderModule raster_module;
   VkShaderModule bbox_module;
@@ -132,8 +125,6 @@ public:
   bool m_withinFrame       = false;
   bool m_nativeMeshSupport = false;
 
-  nvvk::ShaderModuleManager m_shaderManager;
-  ShaderModuleIDs           m_shaders;
   const nvvk::SwapChain* m_swapChain;
 
   nvvk::Context* m_context = nullptr;
@@ -181,8 +172,8 @@ public:
   void deinitPipes();
   bool hasPipes() { return m_setupRegular.pipeline != 0; }
 
-  bool initPrograms(const std::string& path, const std::string& prepend) override;
-  void reloadPrograms(const std::string& prepend) override;
+  bool initPrograms() override;
+  void reloadPrograms() override;
 
   void updatedPrograms();
   void deinitPrograms();

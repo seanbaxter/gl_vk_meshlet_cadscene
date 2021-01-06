@@ -88,8 +88,8 @@ public:
 
   virtual void deinit() {}
 
-  virtual bool initPrograms(const std::string& path, const std::string& prepend) { return true; }
-  virtual void reloadPrograms(const std::string& prepend) {}
+  virtual bool initPrograms() { return true; }
+  virtual void reloadPrograms() {}
 
   virtual bool initFramebuffer(int width, int height, int supersample, bool vsync) { return true; }
 

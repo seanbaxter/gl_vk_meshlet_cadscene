@@ -4,7 +4,7 @@ struct raster_shaders_t {
   const char* spirv_data;
   size_t spirv_size;
 
-  const char* vert;
+  const char* vert[2];   // Without and with clipping.
   const char* frag;
 };
 extern const raster_shaders_t raster_shaders;
@@ -25,6 +25,6 @@ struct mesh_shaders_t {
   size_t spirv_size;
 
   const char* task;
-  const char* mesh;
+  const char* mesh[2];  // Without and with clipping.
 };
 extern const mesh_shaders_t mesh_shaders;

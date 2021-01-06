@@ -167,6 +167,7 @@ public:
     bool     animate           = false;
     bool     colorize          = false;
     bool     showBboxes        = false;
+    bool     clipPrimitives    = false;
     float    fov               = 45.0f;
     int      renderer          = 1;
     int      viewPoint         = 0;
@@ -239,8 +240,6 @@ public:
 
   void setupConfigParameters();
 
-  std::string getShaderPrepend();
-
   Sample() : AppWindowProfilerVK(false, true) {
     setupConfigParameters();
 
@@ -302,27 +301,6 @@ public:
     return ImGuiH::key_button(button, action, mods);
   }
 };
-
-std::string Sample::getShaderPrepend()
-{
-  std::string prepend = m_shaderprepend;
-  if(!prepend.empty())
-  {
-    char* test  = &prepend[0];
-    char* found = nullptr;
-    while((found = strstr(test, "\\n")) != nullptr)
-    {
-      found[0] = ' ';
-      found[1] = '\n';
-      test += 2;
-    }
-  }
-
-  return prepend + nvh::stringFormat("#define NVMESHLET_VERTEX_COUNT %d\n", m_modelConfig.meshVertexCount)
-         + nvh::stringFormat("#define NVMESHLET_PRIMITIVE_COUNT %d\n", m_modelConfig.meshPrimitiveCount)
-         + nvh::stringFormat("#define NVMESHLET_PRIMBITS %d\n", NVMeshlet::findMSB(std::max(32u, m_modelConfig.meshVertexCount) - 1) + 1)
-         + nvh::stringFormat("#define SHOW_BOX %d\n", m_tweak.showBboxes ? 1 : 0);
-}
 
 bool Sample::initProgram()
 {
@@ -407,7 +385,7 @@ void Sample::initRenderer(int typesort)
     valid = valid
             && m_resources->initFramebuffer(m_windowState.m_swapSize[0], m_windowState.m_swapSize[1],
                                             m_tweak.supersample, getVsync());
-    valid = valid && m_resources->initPrograms(exePath(), getShaderPrepend());
+    valid = valid && m_resources->initPrograms();
     valid = valid && m_resources->initScene(m_scene);
 
     if(!valid)
@@ -615,6 +593,8 @@ void Sample::processUI(int width, int height, double time)
     if(1 == m_tweak.renderer)
       ImGui::Checkbox("show meshlet bboxes", &m_tweak.showBboxes);
 
+    ImGui::Checkbox("clip primitives", &m_tweak.clipPrimitives);
+
     //ImGui::Checkbox("animate", &m_tweak.animate);
     ImGui::SliderFloat("fov", &m_tweak.fov, 1, 120, "%.0f");
     ImGui::Separator();
@@ -622,9 +602,6 @@ void Sample::processUI(int width, int height, double time)
     ImGui::SliderFloat("clip position Y", &m_tweak.clipPosition.vec_array[1], 0.01f, 1.01);
     ImGui::SliderFloat("clip position Z", &m_tweak.clipPosition.vec_array[2], 0.01f, 1.01);
     ImGui::Separator();
-    ImGuiH::InputIntClamped("meshlet vertices", &m_modelConfig.meshVertexCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
-    ImGuiH::InputIntClamped("meshlet primitives", &m_modelConfig.meshPrimitiveCount, 32, 256, 32, 32, ImGuiInputTextFlags_EnterReturnsTrue);
-    ImGui::Checkbox("model fp16 attributes", &m_modelConfig.fp16);
     ImGuiH::InputIntClamped("model copies", &m_tweak.copies, 1, 256, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::Separator();
     m_ui.enumCombobox(GUI_SUPERSAMPLE, "superresolution", &m_tweak.supersample);
@@ -688,10 +665,12 @@ void Sample::think(double time)
   if(m_windowState.onPress(KEY_R)
      || m_modelConfig.meshPrimitiveCount != m_lastModelConfig.meshPrimitiveCount
      || m_modelConfig.meshVertexCount != m_lastModelConfig.meshVertexCount || m_shaderprepend != m_lastShaderPrepend
-     || m_tweak.showBboxes != m_lastTweak.showBboxes)
+     || m_tweak.showBboxes != m_lastTweak.showBboxes
+     || m_tweak.clipPrimitives != m_lastTweak.clipPrimitives)
   {
+    m_resources->m_clipping = m_tweak.clipPrimitives;
     m_resources->synchronize();
-    m_resources->reloadPrograms(getShaderPrepend());
+    m_resources->reloadPrograms();
   }
   else if(m_windowState.onPress(KEY_C))
   {
@@ -768,7 +747,6 @@ void Sample::think(double time)
     sceneUbo.viewMatrixIT   = nvmath::transpose(viewI);
 
     sceneUbo.viewPos = sceneUbo.viewMatrixIT.row(3);
-    ;
     sceneUbo.viewDir = -view.row(2);
 
     sceneUbo.wLightPos   = sceneUbo.viewMatrixIT.row(3);

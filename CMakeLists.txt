@@ -85,7 +85,6 @@ endif()
 # Source files for this project
 #
 file(GLOB VK_SOURCE_FILES *.cpp *.hpp *.inl *.h *.c *.cxx)
-file(GLOB GLSL_FILES *.glsl)
 
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_mesh_shader.h)
 list(REMOVE_ITEM VK_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/gl_nv_mesh_shader.cpp)
@@ -99,13 +98,9 @@ source_group(common FILES
   ${COMMON_SOURCE_FILES}
   ${PACKAGE_SOURCE_FILES}
 )
-source_group(shaders FILES 
-  ${GLSL_FILES}
-)
-
 set(UNIXLINKLIBS dl pthread openmp)
 
-add_executable(${VK_EXENAME} ${VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_FILES})
+add_executable(${VK_EXENAME} ${VK_SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES})
 set_source_files_properties(raster_shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
 set_source_files_properties(bbox_shaders.cxx PROPERTIES COMPILE_FLAGS -shader)
 set_source_files_properties(bbox_shaders2.cxx PROPERTIES COMPILE_FLAGS -shader)
@@ -136,14 +131,10 @@ endforeach(RELEASELIB)
 #
 
 _copy_binaries_to_target( ${VK_EXENAME} )
-LIST(APPEND GLSL_FILES "common.h")
-LIST(APPEND GLSL_FILES "config.h")
 LIST(APPEND ASSET_FILES "blade_meshlet.cfg")
 LIST(APPEND ASSET_FILES "blade_meshlet_viewpoints.txt")
 LIST(APPEND ASSET_FILES "worldcar_meshlet.cfg")
 LIST(APPEND ASSET_FILES "worldcar_meshlet_viewpoints.txt")
 
-install(FILES ${GLSL_FILES} CONFIGURATIONS Release DESTINATION "bin_${ARCH}/GLSL_${PROJNAME}")
-install(FILES ${GLSL_FILES} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug/GLSL_${PROJNAME}")
 install(FILES ${ASSET_FILES} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug")
 install(FILES ${ASSET_FILES} CONFIGURATIONS Release DESTINATION "bin_${ARCH}")

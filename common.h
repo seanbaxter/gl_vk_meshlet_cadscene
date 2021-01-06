@@ -74,12 +74,8 @@
 
 #define USE_TASK_STAGE 1
 
-#ifdef __cplusplus
-
 namespace nvmath { }
-
-  using namespace nvmath;
-#endif
+using namespace nvmath;
 
 struct SceneData {
   mat4  viewProjMatrix;
@@ -96,7 +92,7 @@ struct SceneData {
 
   vec2  viewportTaskCull;
   int   colorize;
-  int   _pad0;
+  int   dummy;
   
   vec4  wClipPlanes[NUM_CLIPPING_PLANES];
 };
@@ -124,11 +120,7 @@ struct CullStats {
   uint  attrOutput;
 };
 
-#ifdef __cplusplus
-inline 
-#endif
-
-uint murmurHash(uint idx)
+inline uint murmurHash(uint idx)
 {
   uint m = 0x5bd1e995;
   uint r = 24;

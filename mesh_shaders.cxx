@@ -54,7 +54,7 @@ void task_shader() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template<int vert_count>
+template<int vert_count, bool clip_primitives>
 vec4 procVertex(uint vert, uint vidx, uint meshletID) {
   // Stream the vertex position.
   vec3 oPos = texelFetch(texVbo, vidx).xyz;
@@ -74,14 +74,16 @@ vec4 procVertex(uint vert, uint vidx, uint meshletID) {
   shader_out<3, int[vert_count]>[vert] = meshletID;
   
   // Perform clipping against user clip planes.
-  // glmesh_Output[vert].ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
-  // glmesh_Output[vert].ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
-  // glmesh_Output[vert].ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
-  
+  if constexpr(clip_primitives) {
+    glmesh_Output[vert].ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos,1));
+    glmesh_Output[vert].ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos,1));
+    glmesh_Output[vert].ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos,1));
+  }
+
   return hPos;
 }
 
-template<int vert_count, int prim_count>
+template<int vert_count, int prim_count, bool clip_primitives>
 [[using spirv:
   mesh(triangles, vert_count, prim_count), 
   local_size(GROUP_SIZE)
@@ -119,7 +121,7 @@ void mesh_shader() {
       
       vidx += geometryOffsets.w;
     
-      vec4 hPos = procVertex<vert_count>(vert, vidx, meshletID);
+      vec4 hPos = procVertex<vert_count, clip_primitives>(vert, vidx, meshletID);
     }
   }
   
@@ -147,5 +149,6 @@ const mesh_shaders_t mesh_shaders {
   __spirv_size,
 
   @spirv(task_shader),
-  @spirv(mesh_shader<64, 126>)
+  @spirv(mesh_shader<64, 126, false>),
+  @spirv(mesh_shader<64, 126, true>),
 };

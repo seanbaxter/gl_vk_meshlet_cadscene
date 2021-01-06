@@ -9,6 +9,7 @@ enum typename interpolants_t {
   interpolant_meshletID = int,
 };
 
+template<bool clip_primitives>
 [[spirv::vert]]
 void vert_shader() {
   vec3 oPos = shader_in<VERTEX_POS, vec3>;
@@ -20,7 +21,11 @@ void vert_shader() {
   shader_out<interpolant_pos> = wPos;
   shader_out<interpolate_dummy> = 0;
 
-  // TODO: Perform clipping.
+  if constexpr(clip_primitives) {
+    glvert_Output.ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos, 1));
+    glvert_Output.ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos, 1));
+    glvert_Output.ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos, 1));
+  }
 
   vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
   shader_out<interpolant_normal> = wNormal;
@@ -56,6 +61,7 @@ void frag_shader() {
 const raster_shaders_t raster_shaders {
   __spirv_data,
   __spirv_size,
-  @spirv(vert_shader),
+  @spirv(vert_shader<false>),
+  @spirv(vert_shader<true>),
   @spirv(frag_shader),
 };

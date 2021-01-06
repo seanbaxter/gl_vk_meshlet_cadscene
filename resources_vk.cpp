@@ -425,35 +425,8 @@ void ResourcesVK::deinit()
   m_memAllocator.deinit();
 }
 
-bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepend)
+bool ResourcesVK::initPrograms()
 {
-  m_shaderManager.init(m_device);
-  m_shaderManager.m_filetype       = nvh::ShaderFileManager::FILETYPE_GLSL;
-
-  m_shaderManager.addDirectory(path);
-  m_shaderManager.addDirectory(std::string("GLSL_" PROJECT_NAME));
-  m_shaderManager.addDirectory(path + std::string(PROJECT_RELDIRECTORY));
-
-  m_shaderManager.registerInclude("draw.frag.glsl");
-  m_shaderManager.registerInclude("nvmeshlet_utils.glsl");
-  m_shaderManager.registerInclude("config.h");
-  m_shaderManager.registerInclude("common.h");
-
-  m_shaderManager.m_prepend = std::string("#define IS_VULKAN 1\n") + prepend;
-
-  ///////////////////////////////////////////////////////////////////////////////////////////
-
-
-  {
-    m_shaders.bbox_vertex   = m_shaderManager.createShaderModule(VK_SHADER_STAGE_VERTEX_BIT, "meshletbbox.vert.glsl");
-    m_shaders.bbox_geometry = m_shaderManager.createShaderModule(VK_SHADER_STAGE_GEOMETRY_BIT, "meshletbbox.geo.glsl");
-    m_shaders.bbox_fragment = m_shaderManager.createShaderModule(VK_SHADER_STAGE_FRAGMENT_BIT, "meshletbbox.frag.glsl");
-  }
-
-  ///////////////////////////////////////////////////////////////////////////////////////////
-
-  bool valid = m_shaderManager.areShaderModulesValid();
-
   // Create the combined Circle shader module.
   raster_module = nvvk::createShaderModule(
     m_device,
@@ -479,19 +452,11 @@ bool ResourcesVK::initPrograms(const std::string& path, const std::string& prepe
     mesh_shaders.spirv_size
   );
 
-
-  if(valid)
-  {
-    updatedPrograms();
-  }
-
-  return valid;
+  return true;
 }
 
-void ResourcesVK::reloadPrograms(const std::string& prepend)
+void ResourcesVK::reloadPrograms()
 {
-  m_shaderManager.m_prepend = std::string("#define IS_VULKAN 1\n") + prepend;
-  m_shaderManager.reloadShaderModules();
   updatedPrograms();
 }
 
@@ -502,7 +467,10 @@ void ResourcesVK::updatedPrograms()
 
 void ResourcesVK::deinitPrograms()
 {
-  m_shaderManager.deinit();
+  vkDestroyShaderModule(m_device, raster_module, 0);
+  vkDestroyShaderModule(m_device, bbox_module, 0);
+  vkDestroyShaderModule(m_device, bbox_module2, 0);
+  vkDestroyShaderModule(m_device, mesh_module, 0);
 }
 
 static VkSampleCountFlagBits getSampleCountFlagBits(int msaa)
@@ -1073,7 +1041,7 @@ void ResourcesVK::initPipes()
         pipelineInfo.stageCount = 2;
         stage0.stage            = VK_SHADER_STAGE_VERTEX_BIT;
         stage0.module           = raster_module;
-        stage0.pName            = raster_shaders.vert;
+        stage0.pName            = raster_shaders.vert[m_clipping];
 
         stage1.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage1.module           = raster_module;
@@ -1087,11 +1055,8 @@ void ResourcesVK::initPipes()
         stage0.pName            = bbox_shaders.vert;
         
         stage1.stage            = VK_SHADER_STAGE_GEOMETRY_BIT;
-      // stage1.module           = m_shaderManager.get(m_shaders.bbox_geometry);
-      // stage1.pName            = "main";
-
-         stage1.module           = bbox_module2;
-         stage1.pName            = bbox_shaders2.geom;
+        stage1.module           = bbox_module2;
+        stage1.pName            = bbox_shaders2.geom;
         
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = bbox_module;
@@ -1107,7 +1072,7 @@ void ResourcesVK::initPipes()
 
         stage1.stage            = VK_SHADER_STAGE_MESH_BIT_NV;
         stage1.module           = mesh_module;
-        stage1.pName            = mesh_shaders.mesh;
+        stage1.pName            = mesh_shaders.mesh[m_clipping];
      
         stage2.stage            = VK_SHADER_STAGE_FRAGMENT_BIT;
         stage2.module           = raster_module;
