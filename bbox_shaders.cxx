@@ -20,6 +20,8 @@ void bbox_vert() {
   shader_out<0, Box> = vertex;
 }
 
+// Workaround for https://developer.nvidia.com/nvidia_bug/3222796.
+// Find the geometry shader in bbox_shaders2.cxx
 #ifdef ENABLE_GEOM
 // The normal is 1 triangle strip.
 // The bounding box is 6 triangle strips.
