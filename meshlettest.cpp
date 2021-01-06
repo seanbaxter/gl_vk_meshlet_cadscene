@@ -598,9 +598,9 @@ void Sample::processUI(int width, int height, double time)
     //ImGui::Checkbox("animate", &m_tweak.animate);
     ImGui::SliderFloat("fov", &m_tweak.fov, 1, 120, "%.0f");
     ImGui::Separator();
-    ImGui::SliderFloat("clip position X", &m_tweak.clipPosition.vec_array[0], 0.01f, 1.01);
-    ImGui::SliderFloat("clip position Y", &m_tweak.clipPosition.vec_array[1], 0.01f, 1.01);
-    ImGui::SliderFloat("clip position Z", &m_tweak.clipPosition.vec_array[2], 0.01f, 1.01);
+    ImGui::SliderFloat("clip X", &m_tweak.clipPosition.vec_array[0], 0.01f, 1.01);
+    ImGui::SliderFloat("clip Y", &m_tweak.clipPosition.vec_array[1], 0.01f, 1.01);
+    ImGui::SliderFloat("clip Z", &m_tweak.clipPosition.vec_array[2], 0.01f, 1.01);
     ImGui::Separator();
     ImGuiH::InputIntClamped("model copies", &m_tweak.copies, 1, 256, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::Separator();

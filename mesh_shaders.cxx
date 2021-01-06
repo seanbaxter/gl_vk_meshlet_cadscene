@@ -6,7 +6,6 @@ uint primIndices1[];
 [[using spirv: buffer, binding(GEOMETRY_SSBO_PRIM), set(DSET_GEOMETRY)]]
 uvec2 primIndices2[];
 
-
 [[using spirv: uniform, binding(GEOMETRY_TEX_IBO), set(DSET_GEOMETRY)]]
 usamplerBuffer texIbo;
 
@@ -22,7 +21,6 @@ struct Task {
 };
 
 [[spirv::perTaskOut]] Task taskOut;
-[[spirv::perTaskIn]] Task taskIn;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -82,6 +80,8 @@ vec4 procVertex(uint vert, uint vidx, uint meshletID) {
 
   return hPos;
 }
+
+[[spirv::perTaskIn]] Task taskIn;
 
 template<int vert_count, int prim_count, bool clip_primitives>
 [[using spirv:

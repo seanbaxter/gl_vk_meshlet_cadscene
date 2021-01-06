@@ -31,8 +31,15 @@ struct {
 } push;
 
 struct Vertex {
-  vec3  bboxCtr;
-  vec3  bboxDim;
+  vec3 pos;
+  float dummy;
+  vec3 normal;
+  int meshletID;
+};
+
+struct Box {
+  vec3  ctr;
+  vec3  dim;
   vec3  coneNormal;
   float coneAngle;
   uint  meshletID;

@@ -2,13 +2,6 @@
 // code path even for shaders.
 #include "shaders_common.hxx"
 
-enum typename interpolants_t {
-  interpolant_pos = vec3,
-  interpolate_dummy = float,
-  interpolant_normal = vec3,
-  interpolant_meshletID = int,
-};
-
 template<bool clip_primitives>
 [[spirv::vert]]
 void vert_shader() {
@@ -18,26 +11,28 @@ void vert_shader() {
   vec3 wPos = (object.worldMatrix * vec4(oPos, 1)).xyz;
   glvert_Output.Position = (scene.viewProjMatrix * vec4(wPos, 1));
 
-  shader_out<interpolant_pos> = wPos;
-  shader_out<interpolate_dummy> = 0;
-
   if constexpr(clip_primitives) {
     glvert_Output.ClipDistance[0] = dot(scene.wClipPlanes[0], vec4(wPos, 1));
     glvert_Output.ClipDistance[1] = dot(scene.wClipPlanes[1], vec4(wPos, 1));
     glvert_Output.ClipDistance[2] = dot(scene.wClipPlanes[2], vec4(wPos, 1));
   }
-
   vec3 wNormal = mat3(object.worldMatrixIT) * oNormal;
-  shader_out<interpolant_normal> = wNormal;
 
-  shader_out<interpolant_meshletID> = 0;
+  Vertex vertex { };
+  vertex.pos = wPos;
+  vertex.dummy = 0;
+  vertex.normal = wNormal;
+  vertex.meshletID = 0;
+  shader_out<0, Vertex> = vertex;
 }
 
 [[spirv::frag]]
 void frag_shader() {
-  vec4 color = object.color * .8f + .2f + shader_in<interpolate_dummy>;
+  Vertex vertex = shader_in<0, Vertex>;
+
+  vec4 color = object.color * .8f + .2f + vertex.dummy;
   if(scene.colorize) {
-    uint colorPacked = murmurHash(shader_in<interpolant_meshletID>);
+    uint colorPacked = murmurHash(vertex.meshletID);
     color = 0.5f * (color + unpackUnorm4x8(colorPacked));
   }
 
@@ -47,10 +42,9 @@ void frag_shader() {
     scene.viewMatrixIT[2].w
   );
 
-  vec3 wNormal = shader_in<interpolant_normal>;
-  vec3 wPos = shader_in<interpolant_pos>;
-  vec3 lightDir = normalize(scene.wLightPos.xyz - wPos);
-  vec3 normal = normalize(wNormal);
+
+  vec3 lightDir = normalize(scene.wLightPos.xyz - vertex.pos);
+  vec3 normal = normalize(vertex.normal);
 
   vec4 diffuse = vec4(abs(dot(normal, lightDir)));
   color *= diffuse;
